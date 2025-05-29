@@ -80,6 +80,8 @@ const RoverList = ({ className, onSelectRover }: RoverListProps) => {
         const sensorData = msg.payload.sensorData || {};
         const now = new Date().toISOString();
 
+        console.log(msg.roverId)
+
         setRovers((prev) => {
           const exists = prev.find((r) => r.id === msg.roverId);
           if (exists) {

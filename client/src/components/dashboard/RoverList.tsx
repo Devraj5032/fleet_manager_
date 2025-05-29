@@ -103,6 +103,7 @@ const RoverList: React.FC<RoverListProps> = ({
         const msg = JSON.parse(event.data);
         if (msg.type === "TELEMETRY" && msg.roverId) {
           const sensorData = msg.payload.sensorData || {};
+          console.log(msg)
           const now = new Date().toISOString();
 
           setRovers((prev) => {
@@ -124,8 +125,8 @@ const RoverList: React.FC<RoverListProps> = ({
                 ...prev,
                 {
                   id: msg.roverId,
-                  name: `Rover ${msg.roverId}`,
-                  identifier: `R-${msg.roverId}`,
+                  name: `Rover ${msg.identifier}`,
+                  identifier: `R-${msg.identifier}`,
                   status: "active",
                   ip_address: "unknown",
                   metadata: {},

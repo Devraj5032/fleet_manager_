@@ -76,6 +76,7 @@ const RoverDetails = () => {
 
   return (
     <>
+    {console.log(rover)}
       <div className="mb-6">
         <div className="flex items-center mb-2">
           <h2 className="text-2xl font-semibold mr-3">{rover.name}</h2>
