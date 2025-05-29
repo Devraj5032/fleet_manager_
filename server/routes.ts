@@ -29,7 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws: WebSocket, 
     type: 'rover' | 'frontend',
     roverId?: number, 
-    roverIdentifier?: string 
+    roverIdentifier: string 
   }>();
   
   // Send a message to a specific client
@@ -65,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   
   // Process rover telemetry data
-  async function processTelemetry(roverId: number, payload: any) {
+  async function processTelemetry(roverId: number, payload: any, roverIdentifier: string) {
     try {
       // Extract sensor data from payload
       if (payload.sensorData) {
@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Broadcast to frontend clients
         broadcastToFrontend({
           type: 'TELEMETRY',
-          roverId,
+          roverId: roverIdentifier,
           payload: payload.sensorData,
           timestamp: Date.now()
         });
@@ -221,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 });
               } else {
                 await storage.createRoverClient({
-                  roverId: rover.id,
+                  roverId: roverIdentifier,
                   connected: true,
                   socketId
                 });
@@ -231,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               clients.set(socketId, { 
                 ws, 
                 type: 'rover', 
-                roverId: rover.id,
+                roverId: roverIdentifier,
                 roverIdentifier
               });
               
@@ -249,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Broadcast rover connection to frontend clients
               broadcastToFrontend({
                 type: 'STATUS_UPDATE',
-                roverId: rover.identifier,
+                roverId: roverIdentifier,
                 payload: {
                   status: 'idle',
                   connected: true,
@@ -268,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const client = clients.get(socketId);
             
             if (client?.type === 'rover' && client.roverId) {
-              await processTelemetry(client.roverId, validatedMessage.payload);
+              await processTelemetry(client.roverId, validatedMessage.payload, client.roverIdentifier);
             }
             break;
             
