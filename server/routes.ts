@@ -94,7 +94,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Broadcast to frontend clients
         broadcastToFrontend({
           type: 'TELEMETRY',
-          roverId: roverIdentifier,
+          roverIdentifier: roverIdentifier,
+          roverId: roverId,
           payload: payload.sensorData,
           timestamp: Date.now()
         });
