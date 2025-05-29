@@ -249,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Broadcast rover connection to frontend clients
               broadcastToFrontend({
                 type: 'STATUS_UPDATE',
-                roverId: rover.id,
+                roverId: rover.identifier,
                 payload: {
                   status: 'idle',
                   connected: true,
