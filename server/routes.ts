@@ -241,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 payload: { 
                   success: true,
                   socketId,
-                  roverId: rover.id,
+                  roverId: roverIdentifier,
                   roverIdentifier
                 }
               })));
