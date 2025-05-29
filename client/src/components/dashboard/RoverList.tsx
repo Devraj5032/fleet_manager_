@@ -125,8 +125,8 @@ const RoverList: React.FC<RoverListProps> = ({
                 ...prev,
                 {
                   id: msg.roverId,
-                  name: `Rover ${msg.payload.identifier}`,
-                  identifier: `R-${msg.payload.identifier}`,
+                  name: `Rover ${msg.roverId}`,
+                  identifier: `R-${msg.roverId}`,
                   status: "active",
                   ip_address: "unknown",
                   metadata: {},
