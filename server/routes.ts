@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 });
               } else {
                 await storage.createRoverClient({
-                  roverId: roverIdentifier,
+                  roverId: rover.id,
                   connected: true,
                   socketId
                 });
@@ -232,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               clients.set(socketId, { 
                 ws, 
                 type: 'rover', 
-                roverId: roverIdentifier,
+                roverId: rover.id,
                 roverIdentifier
               });
               
@@ -242,7 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 payload: { 
                   success: true,
                   socketId,
-                  roverId: roverIdentifier,
+                  roverId: rover.id,
                   roverIdentifier
                 }
               })));
@@ -250,7 +250,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Broadcast rover connection to frontend clients
               broadcastToFrontend({
                 type: 'STATUS_UPDATE',
-                roverId: roverIdentifier,
+                roverId: rover.id,
+                roverIdentifier: roverIdentifier,
                 payload: {
                   status: 'idle',
                   connected: true,
