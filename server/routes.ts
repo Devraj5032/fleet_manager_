@@ -269,6 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const client = clients.get(socketId);
             
             if (client?.type === 'rover' && client.roverId) {
+              console.log(client.roverId, validatedMessage.payload, client.roverIdentifier)
               await processTelemetry(client.roverId, validatedMessage.payload, client.roverIdentifier);
             }
             break;
