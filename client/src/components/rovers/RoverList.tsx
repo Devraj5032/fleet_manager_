@@ -103,7 +103,7 @@ const RoverList = ({ className, onSelectRover }: RoverListProps) => {
               {
                 id: msg.roverId,
                 name: `Rover ${msg.roverId}`,
-                identifier: `R-${msg.roverId}`,
+                identifier: `${msg.roverIdentifier}`,
                 status: "active",
                 connected: true,
                 ip_address: "unknown",
