@@ -116,7 +116,7 @@ const MapVisual = ({ className, roverId }: SensorDataProps) => {
         if (fill) {
           const x = offsetX + row * cellSize;
           //          131 + col * cellSize;
-          const y = offsetY + col * cellSize; //40.25 + row * cellSize;
+          const y = 0 + col * cellSize; //40.25 + row * cellSize;
           ctx.fillStyle = fill;
           ctx.fillRect(x, y, cellSize, cellSize);
         }
