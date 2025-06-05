@@ -412,60 +412,66 @@
 // };
 
 // export default MapVisual;
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useRef, useEffect, useCallback } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import type React from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface OccupancyGrid {
-  width: number
-  height: number
-  resolution: number
+  width: number;
+  height: number;
+  resolution: number;
   origin: {
-    position: { x: number; y: number; z: number }
-  }
-  data: number[]
+    position: { x: number; y: number; z: number };
+  };
+  data: number[];
 }
 
 interface SensorData {
-  currentPosition?: { x: number; y: number }
-  distanceTraveled?: number
-  trips?: number
-  speed?: number
+  currentPosition?: { x: number; y: number };
+  distanceTraveled?: number;
+  trips?: number;
+  speed?: number;
 }
 
 interface MapVisualProps {
-  className?: string
-  roverId: number
+  className?: string;
+  roverId: number;
 }
 
 const DynamicMapVisual = ({ className, roverId }: MapVisualProps) => {
-  const [mapData, setMapData] = useState<OccupancyGrid | null>(null)
-  const [sensorData, setSensorData] = useState<SensorData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [mapData, setMapData] = useState<OccupancyGrid | null>(null);
+  const [sensorData, setSensorData] = useState<SensorData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Map interaction state
-  const [zoom, setZoom] = useState(1)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
 
   // Coordinate display state
-  const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number } | null>(null)
-  const [clickCoords, setClickCoords] = useState<{ x: number; y: number } | null>(null)
+  const [hoverCoords, setHoverCoords] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [clickCoords, setClickCoords] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Fetch map data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true)
-        const mapResponse = await fetch("/api/map")
-        const mapData = await mapResponse.json()
-        setMapData(mapData)
+        setLoading(true);
+        const mapResponse = await fetch("/api/map");
+        const mapData = await mapResponse.json();
+        setMapData(mapData);
 
         // Mock sensor data - replace with actual API call
         setSensorData({
@@ -473,264 +479,285 @@ const DynamicMapVisual = ({ className, roverId }: MapVisualProps) => {
           distanceTraveled: 45.2,
           trips: 3,
           speed: 0.8,
-        })
+        });
       } catch (error) {
-        console.error("Failed to fetch data:", error)
+        console.error("Failed to fetch data:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [roverId])
+    fetchData();
+  }, [roverId]);
 
   // Convert world coordinates to canvas coordinates
   const worldToCanvas = useCallback(
     (worldX: number, worldY: number) => {
-      if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
+      if (!mapData || !canvasRef.current) return { x: 0, y: 0 };
 
-      const canvas = canvasRef.current
-      const { resolution, origin } = mapData
+      const canvas = canvasRef.current;
+      const { resolution, origin } = mapData;
 
       // Calculate cell size based on zoom and resolution
-      const cellSize = resolution * zoom * 100 // Adjust multiplier as needed
+      const cellSize = resolution * zoom * 100; // Adjust multiplier as needed
 
       // Calculate map dimensions in pixels
-      const mapPixelWidth = mapData.width * cellSize
-      const mapPixelHeight = mapData.height * cellSize
+      const mapPixelWidth = mapData.width * cellSize;
+      const mapPixelHeight = mapData.height * cellSize;
 
       // Center the map in the canvas
-      const centerOffsetX = (canvas.width - mapPixelWidth) / 2
-      const centerOffsetY = (canvas.height - mapPixelHeight) / 2
+      const centerOffsetX = (canvas.width - mapPixelWidth) / 2;
+      const centerOffsetY = (canvas.height - mapPixelHeight) / 2;
 
       // Transform world coordinates to map grid coordinates
-      const gridX = (worldX - origin.position.x) / resolution
-      const gridY = (worldY - origin.position.y) / resolution
+      const gridX = (worldX - origin.position.x) / resolution;
+      const gridY = (worldY - origin.position.y) / resolution;
 
       // Convert to canvas coordinates
-      const canvasX = centerOffsetX + gridX * cellSize + offset.x
-      const canvasY = centerOffsetY + gridY * cellSize + offset.y
+      const canvasX = centerOffsetX + gridX * cellSize + offset.x;
+      const canvasY = centerOffsetY + gridY * cellSize + offset.y;
 
-      return { x: canvasX, y: canvasY }
+      return { x: canvasX, y: canvasY };
     },
-    [mapData, zoom, offset],
-  )
+    [mapData, zoom, offset]
+  );
 
   // Convert canvas coordinates to world coordinates
   const canvasToWorld = useCallback(
     (canvasX: number, canvasY: number) => {
-      if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
+      if (!mapData || !canvasRef.current) return { x: 0, y: 0 };
 
-      const canvas = canvasRef.current
-      const { resolution, origin } = mapData
+      const canvas = canvasRef.current;
+      const { resolution, origin } = mapData;
 
-      const cellSize = resolution * zoom * 100
-      const mapPixelWidth = mapData.width * cellSize
-      const mapPixelHeight = mapData.height * cellSize
+      const cellSize = resolution * zoom * 100;
+      const mapPixelWidth = mapData.width * cellSize;
+      const mapPixelHeight = mapData.height * cellSize;
 
-      const centerOffsetX = (canvas.width - mapPixelWidth) / 2
-      const centerOffsetY = (canvas.height - mapPixelHeight) / 2
+      const centerOffsetX = (canvas.width - mapPixelWidth) / 2;
+      const centerOffsetY = (canvas.height - mapPixelHeight) / 2;
 
       // Convert canvas coordinates to grid coordinates
-      const gridX = (canvasX - centerOffsetX - offset.x) / cellSize
-      const gridY = (canvasY - centerOffsetY - offset.y) / cellSize
+      const gridX = (canvasX - centerOffsetX - offset.x) / cellSize;
+      const gridY = (canvasY - centerOffsetY - offset.y) / cellSize;
 
       // Convert to world coordinates
-      const worldX = gridX * resolution + origin.position.x
-      const worldY = gridY * resolution + origin.position.y
+      const worldX = gridX * resolution + origin.position.x;
+      const worldY = gridY * resolution + origin.position.y;
 
-      return { x: worldX, y: worldY }
+      return { x: worldX, y: worldY };
     },
-    [mapData, zoom, offset],
-  )
+    [mapData, zoom, offset]
+  );
 
   // Render the map
   const renderMap = useCallback(() => {
-    if (!mapData || !canvasRef.current || !containerRef.current) return
+    if (!mapData || !canvasRef.current || !containerRef.current) return;
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext("2d")
-    const container = containerRef.current
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const container = containerRef.current;
 
-    if (!ctx) return
+    if (!ctx) return;
 
     // Set canvas size to match container
-    const rect = container.getBoundingClientRect()
-    canvas.width = rect.width
-    canvas.height = rect.height
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
 
     // Clear canvas
-    ctx.fillStyle = "#f0f0f0"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = "#f0f0f0";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const { width, height, data, resolution } = mapData
-    const cellSize = resolution * zoom * 100
+    const { width, height, data, resolution } = mapData;
+    const cellSize = resolution * zoom * 100;
 
     // Calculate map positioning
-    const mapPixelWidth = width * cellSize
-    const mapPixelHeight = height * cellSize
-    const centerOffsetX = (canvas.width - mapPixelWidth) / 2
-    const centerOffsetY = (canvas.height - mapPixelHeight) / 2
+    const mapPixelWidth = width * cellSize;
+    const mapPixelHeight = height * cellSize;
+    const centerOffsetX = (canvas.width - mapPixelWidth) / 2;
+    const centerOffsetY = (canvas.height - mapPixelHeight) / 2;
 
     // Save context for transformations
-    ctx.save()
-    ctx.translate(offset.x, offset.y)
+    ctx.save();
+    ctx.translate(offset.x, offset.y);
 
     // Draw occupancy grid
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        const dataIndex = row * width + col
-        const value = data[dataIndex]
+        const dataIndex = row * width + col;
+        const value = data[dataIndex];
 
-        let fillStyle = "rgba(240, 240, 240, 1)" // Unknown/free space
+        let fillStyle = "rgba(240, 240, 240, 1)"; // Unknown/free space
 
         if (value === 100) {
-          fillStyle = "rgba(0, 0, 0, 1)" // Occupied
+          fillStyle = "rgba(0, 0, 0, 1)"; // Occupied
         } else if (value === 0) {
-          fillStyle = "rgba(255, 255, 255, 1)" // Free space
+          fillStyle = "rgba(255, 255, 255, 1)"; // Free space
         } else if (value === -1) {
-          fillStyle = "rgba(128, 128, 128, 0.5)" // Unknown
+          fillStyle = "rgba(128, 128, 128, 0.5)"; // Unknown
         }
 
-        const x = centerOffsetX + col * cellSize
-        const y = centerOffsetY + row * cellSize
+        const x = centerOffsetX + col * cellSize;
+        const y = centerOffsetY + row * cellSize;
 
-        ctx.fillStyle = fillStyle
-        ctx.fillRect(x, y, cellSize, cellSize)
+        ctx.fillStyle = fillStyle;
+        ctx.fillRect(x, y, cellSize, cellSize);
       }
     }
 
     // Draw grid lines for better visibility when zoomed in
     if (zoom > 2) {
-      ctx.strokeStyle = "rgba(200, 200, 200, 0.3)"
-      ctx.lineWidth = 0.5
+      ctx.strokeStyle = "rgba(200, 200, 200, 0.3)";
+      ctx.lineWidth = 0.5;
 
       for (let i = 0; i <= width; i++) {
-        const x = centerOffsetX + i * cellSize
-        ctx.beginPath()
-        ctx.moveTo(x, centerOffsetY)
-        ctx.lineTo(x, centerOffsetY + mapPixelHeight)
-        ctx.stroke()
+        const x = centerOffsetX + i * cellSize;
+        ctx.beginPath();
+        ctx.moveTo(x, centerOffsetY);
+        ctx.lineTo(x, centerOffsetY + mapPixelHeight);
+        ctx.stroke();
       }
 
       for (let i = 0; i <= height; i++) {
-        const y = centerOffsetY + i * cellSize
-        ctx.beginPath()
-        ctx.moveTo(centerOffsetX, y)
-        ctx.lineTo(centerOffsetX + mapPixelWidth, y)
-        ctx.stroke()
+        const y = centerOffsetY + i * cellSize;
+        ctx.beginPath();
+        ctx.moveTo(centerOffsetX, y);
+        ctx.lineTo(centerOffsetX + mapPixelWidth, y);
+        ctx.stroke();
       }
     }
 
     // Draw origin point
-    const originCanvas = worldToCanvas(mapData.origin.position.x, mapData.origin.position.y)
-    ctx.beginPath()
-    ctx.arc(originCanvas.x - offset.x, originCanvas.y - offset.y, 6, 0, 2 * Math.PI)
-    ctx.fillStyle = "red"
-    ctx.fill()
-    ctx.strokeStyle = "white"
-    ctx.lineWidth = 2
-    ctx.stroke()
+    const originCanvas = worldToCanvas(
+      mapData.origin.position.x,
+      mapData.origin.position.y
+    );
+    ctx.beginPath();
+    ctx.arc(
+      originCanvas.x - offset.x,
+      originCanvas.y - offset.y,
+      6,
+      0,
+      2 * Math.PI
+    );
+    ctx.fillStyle = "red";
+    ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
     // Draw rover position if available
     if (sensorData?.currentPosition) {
-      const roverCanvas = worldToCanvas(sensorData.currentPosition.x, sensorData.currentPosition.y)
-      ctx.beginPath()
-      ctx.arc(roverCanvas.x - offset.x, roverCanvas.y - offset.y, 8, 0, 2 * Math.PI)
-      ctx.fillStyle = "blue"
-      ctx.fill()
-      ctx.strokeStyle = "white"
-      ctx.lineWidth = 2
-      ctx.stroke()
+      const roverCanvas = worldToCanvas(
+        sensorData.currentPosition.x,
+        sensorData.currentPosition.y
+      );
+      ctx.beginPath();
+      ctx.arc(
+        roverCanvas.x - offset.x,
+        roverCanvas.y - offset.y,
+        8,
+        0,
+        2 * Math.PI
+      );
+      ctx.fillStyle = "blue";
+      ctx.fill();
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
-    ctx.restore()
-  }, [mapData, sensorData, zoom, offset, worldToCanvas])
+    ctx.restore();
+  }, [mapData, sensorData, zoom, offset, worldToCanvas]);
 
   // Handle mouse events
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!canvasRef.current) return
+      if (!canvasRef.current) return;
 
-      const rect = canvasRef.current.getBoundingClientRect()
-      const canvasX = e.clientX - rect.left
-      const canvasY = e.clientY - rect.top
+      const rect = canvasRef.current.getBoundingClientRect();
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
 
       // Update hover coordinates
-      const worldCoords = canvasToWorld(canvasX, canvasY)
+      const worldCoords = canvasToWorld(canvasX, canvasY);
       setHoverCoords({
         x: Number.parseFloat(worldCoords.x.toFixed(3)),
         y: Number.parseFloat(worldCoords.y.toFixed(3)),
-      })
+      });
 
       // Handle dragging
       if (isDragging) {
-        const deltaX = e.clientX - lastMousePos.x
-        const deltaY = e.clientY - lastMousePos.y
+        const deltaX = e.clientX - lastMousePos.x;
+        const deltaY = e.clientY - lastMousePos.y;
 
         setOffset((prev) => ({
           x: prev.x + deltaX,
           y: prev.y + deltaY,
-        }))
+        }));
 
-        setLastMousePos({ x: e.clientX, y: e.clientY })
+        setLastMousePos({ x: e.clientX, y: e.clientY });
       }
     },
-    [canvasToWorld, isDragging, lastMousePos],
-  )
+    [canvasToWorld, isDragging, lastMousePos]
+  );
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDragging(true)
-    setLastMousePos({ x: e.clientX, y: e.clientY })
-  }, [])
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      setIsDragging(true);
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+    },
+    []
+  );
 
   const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-  }, [])
+    setIsDragging(false);
+  }, []);
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!canvasRef.current) return
+      if (!canvasRef.current) return;
 
-      const rect = canvasRef.current.getBoundingClientRect()
-      const canvasX = e.clientX - rect.left
-      const canvasY = e.clientY - rect.top
+      const rect = canvasRef.current.getBoundingClientRect();
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
 
-      const worldCoords = canvasToWorld(canvasX, canvasY)
+      const worldCoords = canvasToWorld(canvasX, canvasY);
       setClickCoords({
         x: Number.parseFloat(worldCoords.x.toFixed(3)),
         y: Number.parseFloat(worldCoords.y.toFixed(3)),
-      })
+      });
     },
-    [canvasToWorld],
-  )
+    [canvasToWorld]
+  );
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
-      e.preventDefault()
+      e.preventDefault();
 
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
-      const newZoom = Math.max(0.1, Math.min(10, zoom * zoomFactor))
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      const newZoom = Math.max(0.1, Math.min(10, zoom * zoomFactor));
 
-      setZoom(newZoom)
+      setZoom(newZoom);
     },
-    [zoom],
-  )
+    [zoom]
+  );
 
   // Render map when dependencies change
   useEffect(() => {
-    renderMap()
-  }, [renderMap])
+    renderMap();
+  }, [renderMap]);
 
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      renderMap()
-    }
+      renderMap();
+    };
 
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [renderMap])
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [renderMap]);
 
   if (loading) {
     return (
@@ -742,7 +769,7 @@ const DynamicMapVisual = ({ className, roverId }: MapVisualProps) => {
           <Skeleton className="h-96 w-full" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -784,7 +811,8 @@ const DynamicMapVisual = ({ className, roverId }: MapVisualProps) => {
             {/* Map info */}
             {mapData && (
               <div className="absolute bottom-2 left-2 bg-white bg-opacity-90 px-2 py-1 rounded text-xs">
-                Map: {mapData.width}×{mapData.height} | Resolution: {mapData.resolution}m
+                Map: {mapData.width}×{mapData.height} | Resolution:{" "}
+                {mapData.resolution}m
               </div>
             )}
 
@@ -805,13 +833,15 @@ const DynamicMapVisual = ({ className, roverId }: MapVisualProps) => {
               <button
                 className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
                 onClick={() => {
-                  setZoom(1)
-                  setOffset({ x: 0, y: 0 })
+                  setZoom(1);
+                  setOffset({ x: 0, y: 0 });
                 }}
               >
                 Reset
               </button>
-              <span className="text-xs px-2 flex items-center bg-gray-100 rounded">{(zoom * 100).toFixed(0)}%</span>
+              <span className="text-xs px-2 flex items-center bg-gray-100 rounded">
+                {(zoom * 100).toFixed(0)}%
+              </span>
             </div>
           </div>
 
@@ -821,28 +851,49 @@ const DynamicMapVisual = ({ className, roverId }: MapVisualProps) => {
 
             <div className="space-y-4">
               <div className="bg-gray-50 p-3 rounded border">
-                <div className="text-xs text-gray-600 mb-1">Current Position</div>
+                <div className="text-xs text-gray-600 mb-1">
+                  Current Position
+                </div>
                 <div className="font-mono text-sm">
                   {sensorData?.currentPosition
-                    ? `(${sensorData.currentPosition.x.toFixed(2)}, ${sensorData.currentPosition.y.toFixed(2)})`
+                    ? `(${sensorData.currentPosition.x.toFixed(
+                        2
+                      )}, ${sensorData.currentPosition.y.toFixed(2)})`
                     : "Unknown"}
                 </div>
               </div>
 
               <div className="bg-gray-50 p-3 rounded border">
-                <div className="text-xs text-gray-600 mb-1">Distance Traveled</div>
-                <div className="font-mono text-sm">{sensorData?.distanceTraveled?.toFixed(1) || "--"} m</div>
+                <div className="text-xs text-gray-600 mb-1">
+                  Distance Traveled
+                </div>
+                <div className="font-mono text-sm">
+                  {sensorData?.distanceTraveled?.toFixed(1) || "--"} m
+                </div>
               </div>
 
               <div className="bg-gray-50 p-3 rounded border">
                 <div className="text-xs text-gray-600 mb-1">Speed</div>
-                <div className="font-mono text-sm">{sensorData?.speed?.toFixed(2) || "--"} m/s</div>
+                <div className="font-mono text-sm">
+                  {sensorData?.speed?.toFixed(2) || "--"} m/s
+                </div>
               </div>
-
-              <div className="bg-gray-50 p-3 rounded border">
+              {/* <div className="bg-gray-50 p-2 rounded border text-center">
+                <div className="text-xs text-muted-foreground">
+                  Last Position
+                </div>
+                <div className="font-medium text-sm">
+                  {latestSensorData?.currentPosition
+                    ? `${latestSensorData.currentPosition?.x.toFixed(
+                        2
+                      )}, ${latestSensorData.currentPosition?.y.toFixed(2)}`
+                    : "--"}
+                </div>
+              </div> */}
+              {/* <div className="bg-gray-50 p-3 rounded border">
                 <div className="text-xs text-gray-600 mb-1">Trips</div>
                 <div className="font-mono text-sm">{sensorData?.trips || "--"}</div>
-              </div>
+              </div> */}
             </div>
 
             <div className="mt-6 text-xs text-gray-500">
@@ -855,7 +906,7 @@ const DynamicMapVisual = ({ className, roverId }: MapVisualProps) => {
         </div>
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-export default DynamicMapVisual
+export default DynamicMapVisual;
