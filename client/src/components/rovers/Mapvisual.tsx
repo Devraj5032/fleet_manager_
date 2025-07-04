@@ -72,11 +72,9 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       try {
         // Replace with your actual sensor data API endpoint
         const sensorResponse = await fetch(`/api/rovers/${roverId}/sensor-data`)
-
         if (!sensorResponse.ok) {
           throw new Error("Failed to fetch sensor data")
         }
-
         const sensorDataArray = await sensorResponse.json()
 
         // Only update if component is still mounted
@@ -103,7 +101,6 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
         }
       } catch (error) {
         console.error("Failed to fetch sensor data:", error)
-
         // Only set fallback data on first load, not on subsequent failures
         if (isMounted && !sensorData) {
           setSensorData({
@@ -139,7 +136,7 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     }
   }, [roverId])
 
-  // Convert world coordinates to canvas coordinates with rotation
+  // Convert world coordinates to canvas coordinates with rotation (FIXED Y-AXIS FLIP)
   const worldToCanvas = useCallback(
     (worldX: number, worldY: number) => {
       if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
@@ -157,14 +154,14 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       // Apply rotation around the center
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
-
       const rotRad = (rotation * Math.PI) / 180
       const cos = Math.cos(rotRad)
       const sin = Math.sin(rotRad)
 
       // Translate to origin, rotate, then translate back
       const relativeX = gridX * cellSize
-      const relativeY = gridY * cellSize
+      // FLIP Y-AXIS: Negate gridY to flip the coordinate system
+      const relativeY = -gridY * cellSize
 
       const rotatedX = relativeX * cos - relativeY * sin
       const rotatedY = relativeX * sin + relativeY * cos
@@ -177,15 +174,15 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     [mapData, zoom, offset, rotation],
   )
 
-  // Convert canvas coordinates to world coordinates with rotation
+  // Convert canvas coordinates to world coordinates with rotation (FIXED Y-AXIS FLIP)
   const canvasToWorld = useCallback(
     (canvasX: number, canvasY: number) => {
       if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
 
       const canvas = canvasRef.current
       const { resolution, origin } = mapData
-
       const cellSize = resolution * zoom * 100
+
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
 
@@ -203,7 +200,8 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
 
       // Convert to grid coordinates
       const gridX = unrotatedX / cellSize
-      const gridY = unrotatedY / cellSize
+      // FLIP Y-AXIS: Negate gridY to flip the coordinate system back
+      const gridY = -unrotatedY / cellSize
 
       // Convert to world coordinates
       const worldX = gridX * resolution + origin.position.x
@@ -243,7 +241,6 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       // Apply transformations: translate to center, rotate, then apply offset
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
-
       ctx.translate(centerX + offset.x, centerY + offset.y)
       ctx.rotate((rotation * Math.PI) / 180)
 
@@ -253,14 +250,13 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       const mapOffsetX = -mapPixelWidth / 2
       const mapOffsetY = -mapPixelHeight / 2
 
-      // Draw occupancy grid
+      // Draw occupancy grid (FIXED Y-AXIS FLIP)
       for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
           const dataIndex = row * width + col
           const value = data[dataIndex]
 
           let fillStyle = "rgba(240, 240, 240, 1)" // Unknown/free space
-
           if (value === 100) {
             fillStyle = "rgba(0, 0, 0, 1)" // Occupied
           } else if (value === 0) {
@@ -270,7 +266,8 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
           }
 
           const x = mapOffsetX + col * cellSize
-          const y = mapOffsetY + row * cellSize
+          // FLIP Y-AXIS: Render from bottom to top by inverting row calculation
+          const y = mapOffsetY + (height - 1 - row) * cellSize
 
           ctx.fillStyle = fillStyle
           ctx.fillRect(x, y, cellSize, cellSize)
@@ -281,7 +278,6 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       if (zoom > 2) {
         ctx.strokeStyle = "rgba(200, 200, 200, 0.3)"
         ctx.lineWidth = 0.5
-
         for (let i = 0; i <= width; i++) {
           const x = mapOffsetX + i * cellSize
           ctx.beginPath()
@@ -289,7 +285,6 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
           ctx.lineTo(x, mapOffsetY + mapPixelHeight)
           ctx.stroke()
         }
-
         for (let i = 0; i <= height; i++) {
           const y = mapOffsetY + i * cellSize
           ctx.beginPath()
@@ -356,12 +351,10 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       if (isDragging) {
         const deltaX = e.clientX - lastMousePos.x
         const deltaY = e.clientY - lastMousePos.y
-
         setOffset((prev) => ({
           x: prev.x + deltaX,
           y: prev.y + deltaY,
         }))
-
         setLastMousePos({ x: e.clientX, y: e.clientY })
       }
 
@@ -370,11 +363,9 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
         const rect = canvasRef.current.getBoundingClientRect()
         const centerX = rect.width / 2
         const centerY = rect.height / 2
-
         const angle1 = Math.atan2(lastMousePos.y - centerY, lastMousePos.x - centerX)
         const angle2 = Math.atan2(canvasY - centerY, canvasX - centerX)
         const deltaAngle = ((angle2 - angle1) * 180) / Math.PI
-
         setRotation((prev) => prev + deltaAngle)
         setLastMousePos({ x: canvasX, y: canvasY })
       }
@@ -420,14 +411,11 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       if (e.shiftKey) {
         // Shift+click to zoom in towards the clicked point
         const newZoom = Math.min(10, zoom * 1.5)
-
         // Calculate offset adjustment to zoom towards clicked position
         const mouseOffsetX = (canvasX - centerX) / zoom
         const mouseOffsetY = (canvasY - centerY) / zoom
-
         const newOffsetX = offset.x - mouseOffsetX * (1 - zoom / newZoom)
         const newOffsetY = offset.y - mouseOffsetY * (1 - zoom / newZoom)
-
         setZoom(newZoom)
         setOffset({ x: newOffsetX, y: newOffsetY })
       } else {
@@ -442,10 +430,8 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
       e.preventDefault()
-
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
       const newZoom = Math.max(0.1, Math.min(10, zoom * zoomFactor))
-
       setZoom(newZoom)
     },
     [zoom],
@@ -597,7 +583,6 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
           {/* Status Panel */}
           <div className="col-span-1 bg-white p-4 rounded-lg shadow-md">
             <h5 className="font-semibold mb-4">Rover Status</h5>
-
             <div className="space-y-4">
               <div className="bg-gray-50 p-3 rounded border">
                 <div className="text-xs text-gray-600 mb-1">Current Position</div>
@@ -624,12 +609,12 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
               </div>
             </div>
 
-            <div className="mt-6 text-xs text-gray-500">
+            {/* <div className="mt-6 text-xs text-gray-500">
               <div>• Red dot: Origin (0,0)</div>
               <div>• Blue dot: Rover position</div>
               <div>• Click to zoom out, Shift+click to zoom in</div>
               <div>• Real-time updates every 5s</div>
-            </div>
+            </div> */}
           </div>
         </div>
       </CardContent>
