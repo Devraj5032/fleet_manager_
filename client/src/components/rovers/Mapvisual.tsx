@@ -1,10 +1,9 @@
 "use client"
-
 import type React from "react"
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { RotateCcw, RotateCw, Move, MousePointer } from "lucide-react"
+import { RotateCcw, RotateCw, Move, MousePointer, Info } from "lucide-react"
 
 interface OccupancyGrid {
   width: number
@@ -30,63 +29,117 @@ interface MapVisualProps {
 }
 
 const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
+  // Use a single pixel-per-meter scale everywhere to keep rendering consistent
+  const PIXELS_PER_METER = 100
   const [mapData, setMapData] = useState<OccupancyGrid | null>(null)
   const [sensorData, setSensorData] = useState<SensorData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const hasFetchedMap = useRef(false)
 
   // Map interaction state
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(0.5) // Start with a more reasonable zoom level
   const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const [rotation, setRotation] = useState(0) // Rotation in degrees
+  const [rotation, setRotation] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [isRotating, setIsRotating] = useState(false)
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 })
 
   // Coordinate display state
   const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number } | null>(null)
-  const [clickCoords, setClickCoords] = useState<{ x: number; y: number } | null>(null)
+  const [showDebugInfo, setShowDebugInfo] = useState(false)
 
-  // Fetch map data and sensor data
+  const calculateAutoFit = useCallback(() => {
+    if (!mapData || !containerRef.current) return
+
+    const container = containerRef.current
+    const rect = container.getBoundingClientRect()
+
+    // Calculate the scale needed to fit the map in the container
+    const mapWorldWidth = mapData.width * mapData.resolution
+    const mapWorldHeight = mapData.height * mapData.resolution
+
+    const scaleX = (rect.width * 0.8) / (mapWorldWidth * PIXELS_PER_METER) // 80% of container width
+    const scaleY = (rect.height * 0.8) / (mapWorldHeight * PIXELS_PER_METER) // 80% of container height
+
+    const autoZoom = Math.min(scaleX, scaleY, 2) // Cap at 2x zoom
+
+    setZoom(Math.max(0.1, autoZoom))
+    setOffset({ x: 0, y: 0 })
+    setRotation(0)
+  }, [mapData])
+
+  // Fetch map data
   useEffect(() => {
     const fetchMapData = async () => {
       try {
+        setError(null)
         const mapResponse = await fetch("/api/map")
+        if (!mapResponse.ok) {
+          throw new Error(`Failed to fetch map data: ${mapResponse.status}`)
+        }
         const mapData = await mapResponse.json()
+
+        // Validate map data structure
+        if (!mapData || typeof mapData.width !== "number" || typeof mapData.height !== "number") {
+          throw new Error("Invalid map data structure")
+        }
+
+        if (!Array.isArray(mapData.data) || mapData.data.length !== mapData.width * mapData.height) {
+          throw new Error(
+            `Map data array length mismatch. Expected: ${mapData.width * mapData.height}, Got: ${mapData.data?.length || 0}`,
+          )
+        }
+
         setMapData(mapData)
+
+        // Auto-fit the map after loading
+        setTimeout(() => {
+          calculateAutoFit()
+        }, 100)
+
+        console.log("Map data loaded:", {
+          width: mapData.width,
+          height: mapData.height,
+          resolution: mapData.resolution,
+          origin: mapData.origin,
+          dataLength: mapData.data.length,
+          worldSize: {
+            width: mapData.width * mapData.resolution,
+            height: mapData.height * mapData.resolution,
+          },
+        })
       } catch (error) {
         console.error("Failed to fetch map data:", error)
+        setError(error instanceof Error ? error.message : "Failed to fetch map data")
       }
     }
-
-    fetchMapData()
+    if (!hasFetchedMap.current) {
+      hasFetchedMap.current = true
+      fetchMapData()
+    }
   }, [])
 
-  // Fetch sensor data with real-time updates (optimized to prevent reloads)
+  // Fetch sensor data with real-time updates
   useEffect(() => {
     let isMounted = true
     let intervalId: NodeJS.Timeout
 
     const fetchSensorData = async () => {
       try {
-        // Replace with your actual sensor data API endpoint
         const sensorResponse = await fetch(`/api/rovers/${roverId}/sensor-data`)
         if (!sensorResponse.ok) {
-          throw new Error("Failed to fetch sensor data")
+          throw new Error(`Failed to fetch sensor data: ${sensorResponse.status}`)
         }
         const sensorDataArray = await sensorResponse.json()
 
-        // Only update if component is still mounted
         if (isMounted) {
-          // Get the latest sensor data
           const latestSensorData = sensorDataArray && sensorDataArray.length > 0 ? sensorDataArray[0] : null
-
-          // Only update if data actually changed to prevent unnecessary re-renders
           setSensorData((prevData) => {
             if (!prevData || !latestSensorData) return latestSensorData
 
-            // Compare positions to see if update is needed
             const positionChanged =
               prevData.currentPosition?.x !== latestSensorData.currentPosition?.x ||
               prevData.currentPosition?.y !== latestSensorData.currentPosition?.y
@@ -101,8 +154,8 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
         }
       } catch (error) {
         console.error("Failed to fetch sensor data:", error)
-        // Only set fallback data on first load, not on subsequent failures
         if (isMounted && !sensorData) {
+          // Fallback data for testing
           setSensorData({
             currentPosition: { x: 2.5, y: -1.8 },
             distanceTraveled: 45.2,
@@ -118,15 +171,12 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       }
     }
 
-    // Initial fetch
     fetchSensorData()
-
-    // Set up interval for updates (increased to 5 seconds to reduce load)
     intervalId = setInterval(() => {
       if (isMounted) {
         fetchSensorData()
       }
-    }, 5000) // Changed from 2000 to 5000 (5 seconds)
+    }, 5000)
 
     return () => {
       isMounted = false
@@ -134,9 +184,9 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
         clearInterval(intervalId)
       }
     }
-  }, [roverId])
+  }, [roverId, loading, sensorData])
 
-  // Convert world coordinates to canvas coordinates with rotation (FIXED Y-AXIS FLIP)
+  // Convert world coordinates to canvas coordinates
   const worldToCanvas = useCallback(
     (worldX: number, worldY: number) => {
       if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
@@ -145,7 +195,7 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       const { resolution, origin } = mapData
 
       // Calculate cell size based on zoom and resolution
-      const cellSize = resolution * zoom * 100
+      const cellSize = resolution * zoom * PIXELS_PER_METER
 
       // Transform world coordinates to map grid coordinates
       const gridX = (worldX - origin.position.x) / resolution
@@ -158,14 +208,16 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       const cos = Math.cos(rotRad)
       const sin = Math.sin(rotRad)
 
-      // Translate to origin, rotate, then translate back
+      // Position relative to map center
       const relativeX = gridX * cellSize
-      // FLIP Y-AXIS: Negate gridY to flip the coordinate system
+      // Flip Y-axis: Negate gridY to match typical map coordinate systems
       const relativeY = -gridY * cellSize
 
+      // Apply rotation
       const rotatedX = relativeX * cos - relativeY * sin
       const rotatedY = relativeX * sin + relativeY * cos
 
+      // Final canvas coordinates
       const canvasX = centerX + rotatedX + offset.x
       const canvasY = centerY + rotatedY + offset.y
 
@@ -174,14 +226,14 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     [mapData, zoom, offset, rotation],
   )
 
-  // Convert canvas coordinates to world coordinates with rotation (FIXED Y-AXIS FLIP)
+  // Convert canvas coordinates to world coordinates
   const canvasToWorld = useCallback(
     (canvasX: number, canvasY: number) => {
       if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
 
       const canvas = canvasRef.current
       const { resolution, origin } = mapData
-      const cellSize = resolution * zoom * 100
+      const cellSize = resolution * zoom * PIXELS_PER_METER
 
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
@@ -200,7 +252,7 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
 
       // Convert to grid coordinates
       const gridX = unrotatedX / cellSize
-      // FLIP Y-AXIS: Negate gridY to flip the coordinate system back
+      // Flip Y-axis back
       const gridY = -unrotatedY / cellSize
 
       // Convert to world coordinates
@@ -212,7 +264,7 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     [mapData, zoom, offset, rotation],
   )
 
-  // Memoize the render function to prevent unnecessary re-renders
+  // Render the map
   const renderMap = useMemo(() => {
     return () => {
       if (!mapData || !canvasRef.current || !containerRef.current) return
@@ -225,15 +277,23 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
 
       // Set canvas size to match container
       const rect = container.getBoundingClientRect()
-      canvas.width = rect.width
-      canvas.height = rect.height
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width
+        canvas.height = rect.height
+      }
 
-      // Clear canvas
-      ctx.fillStyle = "#f0f0f0"
+      // Clear canvas with background color
+      ctx.fillStyle = "#f8f9fa"
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
       const { width, height, data, resolution } = mapData
-      const cellSize = resolution * zoom * 100
+      const cellSize = Math.max(0.1, resolution * zoom * PIXELS_PER_METER) // Ensure minimum cell size
+
+      // Validate data array
+      if (data.length !== width * height) {
+        console.error("Data array length mismatch:", data.length, "expected:", width * height)
+        return
+      }
 
       // Save context for transformations
       ctx.save()
@@ -250,23 +310,39 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       const mapOffsetX = -mapPixelWidth / 2
       const mapOffsetY = -mapPixelHeight / 2
 
-      // Draw occupancy grid (FIXED Y-AXIS FLIP)
+      // Draw occupancy grid
       for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
           const dataIndex = row * width + col
-          const value = data[dataIndex]
 
-          let fillStyle = "rgba(240, 240, 240, 1)" // Unknown/free space
+          // Bounds check
+          if (dataIndex >= data.length) {
+            console.warn(`Data index out of bounds: ${dataIndex} >= ${data.length}`)
+            continue
+          }
+
+          const value = data[dataIndex]
+          let fillStyle = "rgba(200, 200, 200, 0.5)" // Unknown/default
+
+          // Map occupancy values to colors
           if (value === 100) {
-            fillStyle = "rgba(0, 0, 0, 1)" // Occupied
+            fillStyle = "rgba(0, 0, 0, 1)" // Occupied (black)
           } else if (value === 0) {
-            fillStyle = "rgba(255, 255, 255, 1)" // Free space
+            fillStyle = "rgba(255, 255, 255, 1)" // Free space (white)
           } else if (value === -1) {
-            fillStyle = "rgba(128, 128, 128, 0.5)" // Unknown
+            fillStyle = "rgba(128, 128, 128, 0.3)" // Unknown (gray)
+          } else if (value > 50) {
+            // Probably occupied
+            const alpha = Math.min(1, value / 100)
+            fillStyle = `rgba(0, 0, 0, ${alpha})`
+          } else if (value >= 0) {
+            // Probably free
+            const alpha = Math.max(0.1, 1 - value / 50)
+            fillStyle = `rgba(255, 255, 255, ${alpha})`
           }
 
           const x = mapOffsetX + col * cellSize
-          // FLIP Y-AXIS: Render from bottom to top by inverting row calculation
+          // Flip Y-axis: Render from bottom to top
           const y = mapOffsetY + (height - 1 - row) * cellSize
 
           ctx.fillStyle = fillStyle
@@ -274,10 +350,12 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
         }
       }
 
-      // Draw grid lines for better visibility when zoomed in
-      if (zoom > 2) {
-        ctx.strokeStyle = "rgba(200, 200, 200, 0.3)"
+      // Draw grid lines when zoomed in
+      if (zoom > 3) {
+        ctx.strokeStyle = "rgba(150, 150, 150, 0.2)"
         ctx.lineWidth = 0.5
+
+        // Vertical lines
         for (let i = 0; i <= width; i++) {
           const x = mapOffsetX + i * cellSize
           ctx.beginPath()
@@ -285,6 +363,8 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
           ctx.lineTo(x, mapOffsetY + mapPixelHeight)
           ctx.stroke()
         }
+
+        // Horizontal lines
         for (let i = 0; i <= height; i++) {
           const y = mapOffsetY + i * cellSize
           ctx.beginPath()
@@ -296,42 +376,52 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
 
       ctx.restore()
 
-      // Draw points in screen space (not rotated)
-      // Draw origin point
+      // Draw points in screen space (not affected by rotation)
+      // Draw origin point (red)
       const originCanvas = worldToCanvas(mapData.origin.position.x, mapData.origin.position.y)
       ctx.beginPath()
-      ctx.arc(originCanvas.x, originCanvas.y, 6, 0, 2 * Math.PI)
-      ctx.fillStyle = "red"
+      ctx.arc(originCanvas.x, originCanvas.y, 8, 0, 2 * Math.PI)
+      ctx.fillStyle = "#ef4444"
       ctx.fill()
       ctx.strokeStyle = "white"
-      ctx.lineWidth = 2
+      ctx.lineWidth = 3
       ctx.stroke()
 
-      // Draw rover position if available
+      // Add origin label
+      ctx.fillStyle = "black"
+      ctx.font = "12px sans-serif"
+      ctx.fillText("Origin", originCanvas.x + 12, originCanvas.y - 8)
+
+      // Draw rover position if available (blue)
       if (sensorData?.currentPosition) {
         const roverCanvas = worldToCanvas(sensorData.currentPosition.x, sensorData.currentPosition.y)
+
+        // Rover position dot
         ctx.beginPath()
-        ctx.arc(roverCanvas.x, roverCanvas.y, 8, 0, 2 * Math.PI)
-        ctx.fillStyle = "blue"
+        ctx.arc(roverCanvas.x, roverCanvas.y, 10, 0, 2 * Math.PI)
+        ctx.fillStyle = "#3b82f6"
         ctx.fill()
         ctx.strokeStyle = "white"
-        ctx.lineWidth = 2
-        ctx.stroke()
-
-        // Draw rover direction indicator
-        ctx.beginPath()
-        ctx.moveTo(roverCanvas.x, roverCanvas.y)
-        ctx.lineTo(roverCanvas.x + 15, roverCanvas.y)
-        ctx.strokeStyle = "blue"
         ctx.lineWidth = 3
         ctx.stroke()
-      }
 
-      // Draw click coordinates if available
+        // Rover direction indicator
+        ctx.beginPath()
+        ctx.moveTo(roverCanvas.x, roverCanvas.y)
+        ctx.lineTo(roverCanvas.x + 20, roverCanvas.y)
+        ctx.strokeStyle = "#3b82f6"
+        ctx.lineWidth = 4
+        ctx.stroke()
+
+        // Add rover label
+        ctx.fillStyle = "black"
+        ctx.font = "12px sans-serif"
+        ctx.fillText("Rover", roverCanvas.x + 12, roverCanvas.y + 20)
+      }
     }
   }, [mapData, sensorData, zoom, offset, rotation, worldToCanvas])
 
-  // Handle mouse events
+  // Mouse event handlers
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!canvasRef.current) return
@@ -381,11 +471,9 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     const canvasY = e.clientY - rect.top
 
     if (e.shiftKey) {
-      // Rotation mode with Shift key
       setIsRotating(true)
       setLastMousePos({ x: canvasX, y: canvasY })
     } else {
-      // Pan mode (default)
       setIsDragging(true)
       setLastMousePos({ x: e.clientX, y: e.clientY })
     }
@@ -396,61 +484,70 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     setIsRotating(false)
   }, [])
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!canvasRef.current || isDragging || isRotating) return
-
-      const rect = canvasRef.current.getBoundingClientRect()
-      const canvasX = e.clientX - rect.left
-      const canvasY = e.clientY - rect.top
-
-      // Get the center of the canvas
-      const centerX = rect.width / 2
-      const centerY = rect.height / 2
-
-      if (e.shiftKey) {
-        // Shift+click to zoom in towards the clicked point
-        const newZoom = Math.min(10, zoom * 1.5)
-        // Calculate offset adjustment to zoom towards clicked position
-        const mouseOffsetX = (canvasX - centerX) / zoom
-        const mouseOffsetY = (canvasY - centerY) / zoom
-        const newOffsetX = offset.x - mouseOffsetX * (1 - zoom / newZoom)
-        const newOffsetY = offset.y - mouseOffsetY * (1 - zoom / newZoom)
-        setZoom(newZoom)
-        setOffset({ x: newOffsetX, y: newOffsetY })
-      } else {
-        // Regular click to zoom out
-        const newZoom = Math.max(0.1, zoom * 0.7)
-        setZoom(newZoom)
-      }
-    },
-    [zoom, offset, isDragging, isRotating],
-  )
-
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
       e.preventDefault()
+      if (!canvasRef.current || !mapData) return
+      const rect = canvasRef.current.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
-      const newZoom = Math.max(0.1, Math.min(10, zoom * zoomFactor))
-      setZoom(newZoom)
+      const targetZoom = Math.max(0.1, Math.min(10, zoom * zoomFactor))
+
+      // Keep the world point under cursor stationary by adjusting offset
+      const { resolution, origin } = mapData
+      const cellSizePrev = resolution * zoom * PIXELS_PER_METER
+      const centerX = rect.width / 2
+      const centerY = rect.height / 2
+      const relX = mouseX - (centerX + offset.x)
+      const relY = mouseY - (centerY + offset.y)
+
+      // Reverse rotation for previous zoom
+      const rotRadInv = (-rotation * Math.PI) / 180
+      const cosInv = Math.cos(rotRadInv)
+      const sinInv = Math.sin(rotRadInv)
+      const ux = relX * cosInv - relY * sinInv
+      const uy = relX * sinInv + relY * cosInv
+
+      const gridX = ux / cellSizePrev
+      const gridY = -uy / cellSizePrev
+      const worldX = gridX * resolution + origin.position.x
+      const worldY = gridY * resolution + origin.position.y
+
+      // Compute new canvas position of the same world point at target zoom
+      const cellSizeNew = resolution * targetZoom * PIXELS_PER_METER
+      const newUx = gridX * cellSizeNew
+      const newUy = -gridY * cellSizeNew
+      const rotRad = (rotation * Math.PI) / 180
+      const cos = Math.cos(rotRad)
+      const sin = Math.sin(rotRad)
+      const newRelX = newUx * cos - newUy * sin
+      const newRelY = newUx * sin + newUy * cos
+      const newCanvasX = centerX + newRelX + offset.x
+      const newCanvasY = centerY + newRelY + offset.y
+
+      // Adjust offset so new canvas point equals mouse position
+      const deltaX = mouseX - newCanvasX
+      const deltaY = mouseY - newCanvasY
+      setOffset((prev) => ({ x: prev.x + deltaX, y: prev.y + deltaY }))
+      setZoom(targetZoom)
     },
-    [zoom],
+    [zoom, offset, rotation, mapData],
   )
 
   // Control functions
-  const rotateLeft = () => setRotation((prev) => prev - 15)
-  const rotateRight = () => setRotation((prev) => prev + 15)
+  const rotateLeft = () => setRotation((prev) => ((prev - 15) % 360 + 360) % 360)
+  const rotateRight = () => setRotation((prev) => ((prev + 15) % 360 + 360) % 360)
   const resetView = () => {
-    setZoom(1)
-    setOffset({ x: 0, y: 0 })
-    setRotation(0)
+    calculateAutoFit()
   }
 
-  // Render map when dependencies change (optimized)
+  // Render map when dependencies change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       renderMap()
-    }, 16) // Debounce rendering to ~60fps
+    }, 16) // ~60fps
 
     return () => clearTimeout(timeoutId)
   }, [renderMap])
@@ -478,10 +575,40 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     )
   }
 
+  if (error) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <h4 className="text-lg font-semibold text-red-600">Map Loading Error</h4>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-700">{error}</p>
+            <button
+              className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className={className}>
       <CardHeader>
-        <h4 className="text-lg font-semibold">Enhanced Map Visualization</h4>
+        <div className="flex justify-between items-center">
+          <h4 className="text-lg font-semibold">Enhanced Map Visualization</h4>
+          <button
+            onClick={() => setShowDebugInfo(!showDebugInfo)}
+            className="p-2 hover:bg-gray-100 rounded"
+            title="Toggle Debug Info"
+          >
+            <Info size={16} />
+          </button>
+        </div>
         <div className="text-sm text-gray-600">
           Last updated: {sensorData?.timestamp ? new Date(sensorData.timestamp).toLocaleTimeString() : "Never"}
         </div>
@@ -502,26 +629,60 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
               onMouseDown={handleMouseDown}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onClick={handleClick}
               onWheel={handleWheel}
             />
 
             {/* Coordinate displays */}
             {hoverCoords && (
-              <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+              <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm font-mono">
                 Hover: ({hoverCoords.x}, {hoverCoords.y})
               </div>
             )}
 
-            {/* Map info */}
-            {mapData && (
-              <div className="absolute bottom-2 left-2 bg-white bg-opacity-90 px-2 py-1 rounded text-xs">
-                Map: {mapData.width}×{mapData.height} | Resolution: {mapData.resolution}m | Rotation:{" "}
-                {rotation.toFixed(0)}°
+            {/* Debug info */}
+            {showDebugInfo && mapData && (
+              <div className="absolute top-2 right-2 bg-white bg-opacity-95 p-3 rounded text-xs space-y-1 max-w-xs">
+                <div>
+                  <strong>Map:</strong> {mapData.width}×{mapData.height}
+                </div>
+                <div>
+                  <strong>Resolution:</strong> {mapData.resolution}m
+                </div>
+                <div>
+                  <strong>Origin:</strong> ({mapData.origin.position.x}, {mapData.origin.position.y})
+                </div>
+                <div>
+                  <strong>Data Length:</strong> {mapData.data.length}
+                </div>
+                <div>
+                  <strong>Zoom:</strong> {(zoom * 100).toFixed(0)}%
+                </div>
+                <div>
+                  <strong>Rotation:</strong> {rotation.toFixed(0)}°
+                </div>
+                <div>
+                  <strong>Offset:</strong> ({offset.x.toFixed(0)}, {offset.y.toFixed(0)})
+                </div>
+                {sensorData?.currentPosition && (
+                  <div>
+                    <strong>Rover World:</strong> ({sensorData.currentPosition.x.toFixed(2)},{" "}
+                    {sensorData.currentPosition.y.toFixed(2)})
+                  </div>
+                )}
+                <div>
+                  <strong>Map World Size:</strong> {(mapData.width * mapData.resolution).toFixed(2)}m ×{" "}
+                  {(mapData.height * mapData.resolution).toFixed(2)}m
+                </div>
               </div>
             )}
 
-            {/* Enhanced Controls */}
+            {/* Map info */}
+            <div className="absolute bottom-2 left-2 bg-white bg-opacity-90 px-2 py-1 rounded text-xs">
+              Map: {mapData?.width}×{mapData?.height} | Resolution: {mapData?.resolution}m | Rotation:{" "}
+              {rotation.toFixed(0)}°
+            </div>
+
+            {/* Controls */}
             <div className="absolute bottom-2 right-2 flex flex-col gap-2">
               {/* Zoom Controls */}
               <div className="flex gap-2 bg-white bg-opacity-90 rounded p-2">
@@ -563,6 +724,13 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
                 >
                   Reset
                 </button>
+                <button
+                  className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                  onClick={calculateAutoFit}
+                  title="Auto Fit Map"
+                >
+                  Fit
+                </button>
               </div>
             </div>
 
@@ -575,7 +743,7 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
                 <span className="flex items-center gap-1">
                   <MousePointer size={12} /> Shift+drag to rotate
                 </span>
-                <span>Click to zoom out, Shift+click to zoom in</span>
+                <span>Scroll to zoom</span>
               </div>
             </div>
           </div>
@@ -609,12 +777,12 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
               </div>
             </div>
 
-            {/* <div className="mt-6 text-xs text-gray-500">
+            <div className="mt-6 text-xs text-gray-500 space-y-1">
               <div>• Red dot: Origin (0,0)</div>
               <div>• Blue dot: Rover position</div>
-              <div>• Click to zoom out, Shift+click to zoom in</div>
-              <div>• Real-time updates every 5s</div>
-            </div> */}
+              <div>• Scroll to zoom</div>
+              <div>• Updates every 5s</div>
+            </div>
           </div>
         </div>
       </CardContent>
