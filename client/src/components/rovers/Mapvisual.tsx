@@ -29,8 +29,8 @@ interface MapVisualProps {
 }
 
 const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
-  // Use a single pixel-per-meter scale everywhere to keep rendering consistent
-  const PIXELS_PER_METER = 100
+  // Image-based rendering state (ROS2-style occupancy grid to ImageData)
+  const [imageData, setImageData] = useState<ImageData | null>(null)
   const [mapData, setMapData] = useState<OccupancyGrid | null>(null)
   const [sensorData, setSensorData] = useState<SensorData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -57,18 +57,38 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
     const container = containerRef.current
     const rect = container.getBoundingClientRect()
 
-    // Calculate the scale needed to fit the map in the container
-    const mapWorldWidth = mapData.width * mapData.resolution
-    const mapWorldHeight = mapData.height * mapData.resolution
-
-    const scaleX = (rect.width * 0.8) / (mapWorldWidth * PIXELS_PER_METER) // 80% of container width
-    const scaleY = (rect.height * 0.8) / (mapWorldHeight * PIXELS_PER_METER) // 80% of container height
+    // Calculate the scale needed to fit the map (image cells → pixels)
+    const scaleX = (rect.width * 0.8) / mapData.width // 80% of container width
+    const scaleY = (rect.height * 0.8) / mapData.height // 80% of container height
 
     const autoZoom = Math.min(scaleX, scaleY, 2) // Cap at 2x zoom
 
-    setZoom(Math.max(0.1, autoZoom))
-    setOffset({ x: 0, y: 0 })
+    const finalZoom = Math.max(0.1, autoZoom)
+    setZoom(finalZoom)
     setRotation(0)
+
+    // If world (0,0) lies within the map bounds, center it
+    const { origin, width, height, resolution } = mapData
+    const minX = origin.position.x
+    const maxX = origin.position.x + width * resolution
+    const minY = origin.position.y
+    const maxY = origin.position.y + height * resolution
+    const zeroInside = 0 >= minX && 0 <= maxX && 0 >= minY && 0 <= maxY
+
+    if (zeroInside) {
+      const gridX0 = (0 - origin.position.x) / resolution
+      const gridY0 = (0 - origin.position.y) / resolution
+      const flippedGridY0 = height - 1 - gridY0
+      const mapX = gridX0 - width / 2
+      const mapY = flippedGridY0 - height / 2
+      const scaledX = mapX * finalZoom
+      const scaledY = mapY * finalZoom
+      // Center at canvas center → offset cancels scaled
+      setOffset({ x: -scaledX, y: -scaledY })
+    } else {
+      // Default: center the map itself
+      setOffset({ x: 0, y: 0 })
+    }
   }, [mapData])
 
   // Fetch map data
@@ -94,6 +114,45 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
         }
 
         setMapData(mapData)
+
+        // Build ImageData from occupancy grid with ROS2 Y-flip
+        try {
+          const { width, height, data } = mapData
+          const tmp = document.createElement("canvas")
+          tmp.width = width
+          tmp.height = height
+          const tctx = tmp.getContext("2d")
+          if (tctx) {
+            const img = tctx.createImageData(width, height)
+            const pixels = img.data
+            for (let y = 0; y < height; y++) {
+              for (let x = 0; x < width; x++) {
+                const dataIndex = y * width + x
+                const flippedY = height - 1 - y
+                const pixelIndex = (flippedY * width + x) * 4
+                const value = data[dataIndex]
+                let r = 200, g = 200, b = 200
+                if (value === 0) {
+                  r = g = b = 255
+                } else if (value === 100) {
+                  r = g = b = 0
+                } else if (value === -1) {
+                  r = g = b = 128
+                } else if (value > 0) {
+                  const intensity = Math.max(0, 255 - value * 2.55)
+                  r = g = b = intensity
+                }
+                pixels[pixelIndex] = r
+                pixels[pixelIndex + 1] = g
+                pixels[pixelIndex + 2] = b
+                pixels[pixelIndex + 3] = 255
+              }
+            }
+            setImageData(img)
+          }
+        } catch (e) {
+          console.warn("Failed generating ImageData for map:", e)
+        }
 
         // Auto-fit the map after loading
         setTimeout(() => {
@@ -192,36 +251,29 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
 
       const canvas = canvasRef.current
-      const { resolution, origin } = mapData
+      const { resolution, origin, width, height } = mapData
 
-      // Calculate cell size based on zoom and resolution
-      const cellSize = resolution * zoom * PIXELS_PER_METER
-
-      // Transform world coordinates to map grid coordinates
+      // Convert world to grid
       const gridX = (worldX - origin.position.x) / resolution
       const gridY = (worldY - origin.position.y) / resolution
+      // Flip Y for ROS2 → Canvas
+      const flippedGridY = height - 1 - gridY
 
-      // Apply rotation around the center
+      // Map-centered coordinates (in pixels where 1 cell = 1 px before zoom)
+      const mapX = gridX - width / 2
+      const mapY = flippedGridY - height / 2
+
+      // Apply scale then rotation then center+offset translate
+      const scaledX = mapX * zoom
+      const scaledY = mapY * zoom
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
       const rotRad = (rotation * Math.PI) / 180
       const cos = Math.cos(rotRad)
       const sin = Math.sin(rotRad)
-
-      // Position relative to map center
-      const relativeX = gridX * cellSize
-      // Flip Y-axis: Negate gridY to match typical map coordinate systems
-      const relativeY = -gridY * cellSize
-
-      // Apply rotation
-      const rotatedX = relativeX * cos - relativeY * sin
-      const rotatedY = relativeX * sin + relativeY * cos
-
-      // Final canvas coordinates
-      const canvasX = centerX + rotatedX + offset.x
-      const canvasY = centerY + rotatedY + offset.y
-
-      return { x: canvasX, y: canvasY }
+      const rotatedX = scaledX * cos - scaledY * sin
+      const rotatedY = scaledX * sin + scaledY * cos
+      return { x: centerX + offset.x + rotatedX, y: centerY + offset.y + rotatedY }
     },
     [mapData, zoom, offset, rotation],
   )
@@ -232,33 +284,33 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       if (!mapData || !canvasRef.current) return { x: 0, y: 0 }
 
       const canvas = canvasRef.current
-      const { resolution, origin } = mapData
-      const cellSize = resolution * zoom * PIXELS_PER_METER
-
+      const { resolution, origin, width, height } = mapData
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
 
-      // Reverse the transformations
-      const relativeX = canvasX - centerX - offset.x
-      const relativeY = canvasY - centerY - offset.y
+      // Reverse translate
+      const relX = canvasX - centerX - offset.x
+      const relY = canvasY - centerY - offset.y
 
       // Reverse rotation
       const rotRad = (-rotation * Math.PI) / 180
       const cos = Math.cos(rotRad)
       const sin = Math.sin(rotRad)
+      const ux = relX * cos - relY * sin
+      const uy = relX * sin + relY * cos
 
-      const unrotatedX = relativeX * cos - relativeY * sin
-      const unrotatedY = relativeX * sin + relativeY * cos
+      // Reverse scale
+      const mapX = ux / zoom
+      const mapY = uy / zoom
 
-      // Convert to grid coordinates
-      const gridX = unrotatedX / cellSize
-      // Flip Y-axis back
-      const gridY = -unrotatedY / cellSize
+      // Back to grid
+      const gridX = mapX + width / 2
+      const flippedGridY = mapY + height / 2
+      const gridY = height - 1 - flippedGridY
 
-      // Convert to world coordinates
-      const worldX = gridX * resolution + origin.position.x
-      const worldY = gridY * resolution + origin.position.y
-
+      // To world
+      const worldX = origin.position.x + gridX * resolution
+      const worldY = origin.position.y + gridY * resolution
       return { x: worldX, y: worldY }
     },
     [mapData, zoom, offset, rotation],
@@ -282,103 +334,35 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
         canvas.height = rect.height
       }
 
-      // Clear canvas with background color
+      // Clear background
       ctx.fillStyle = "#f8f9fa"
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      const { width, height, data, resolution } = mapData
-      const cellSize = Math.max(0.1, resolution * zoom * PIXELS_PER_METER) // Ensure minimum cell size
+      // Draw prebuilt image with transforms
+      if (imageData) {
+        ctx.imageSmoothingEnabled = false
+        ctx.save()
+        const centerX = canvas.width / 2
+        const centerY = canvas.height / 2
+        ctx.translate(centerX + offset.x, centerY + offset.y)
+        ctx.rotate((rotation * Math.PI) / 180)
+        ctx.scale(zoom, zoom)
 
-      // Validate data array
-      if (data.length !== width * height) {
-        console.error("Data array length mismatch:", data.length, "expected:", width * height)
-        return
-      }
-
-      // Save context for transformations
-      ctx.save()
-
-      // Apply transformations: translate to center, rotate, then apply offset
-      const centerX = canvas.width / 2
-      const centerY = canvas.height / 2
-      ctx.translate(centerX + offset.x, centerY + offset.y)
-      ctx.rotate((rotation * Math.PI) / 180)
-
-      // Calculate map positioning (centered)
-      const mapPixelWidth = width * cellSize
-      const mapPixelHeight = height * cellSize
-      const mapOffsetX = -mapPixelWidth / 2
-      const mapOffsetY = -mapPixelHeight / 2
-
-      // Draw occupancy grid
-      for (let row = 0; row < height; row++) {
-        for (let col = 0; col < width; col++) {
-          const dataIndex = row * width + col
-
-          // Bounds check
-          if (dataIndex >= data.length) {
-            console.warn(`Data index out of bounds: ${dataIndex} >= ${data.length}`)
-            continue
-          }
-
-          const value = data[dataIndex]
-          let fillStyle = "rgba(200, 200, 200, 0.5)" // Unknown/default
-
-          // Map occupancy values to colors
-          if (value === 100) {
-            fillStyle = "rgba(0, 0, 0, 1)" // Occupied (black)
-          } else if (value === 0) {
-            fillStyle = "rgba(255, 255, 255, 1)" // Free space (white)
-          } else if (value === -1) {
-            fillStyle = "rgba(128, 128, 128, 0.3)" // Unknown (gray)
-          } else if (value > 50) {
-            // Probably occupied
-            const alpha = Math.min(1, value / 100)
-            fillStyle = `rgba(0, 0, 0, ${alpha})`
-          } else if (value >= 0) {
-            // Probably free
-            const alpha = Math.max(0.1, 1 - value / 50)
-            fillStyle = `rgba(255, 255, 255, ${alpha})`
-          }
-
-          const x = mapOffsetX + col * cellSize
-          // Flip Y-axis: Render from bottom to top
-          const y = mapOffsetY + (height - 1 - row) * cellSize
-
-          ctx.fillStyle = fillStyle
-          ctx.fillRect(x, y, cellSize, cellSize)
+        // Create temporary image canvas
+        const tmp = document.createElement("canvas")
+        tmp.width = mapData.width
+        tmp.height = mapData.height
+        const tctx = tmp.getContext("2d")
+        if (tctx) {
+          tctx.putImageData(imageData, 0, 0)
+          ctx.drawImage(tmp, -mapData.width / 2, -mapData.height / 2)
         }
+        ctx.restore()
       }
-
-      // Draw grid lines when zoomed in
-      if (zoom > 3) {
-        ctx.strokeStyle = "rgba(150, 150, 150, 0.2)"
-        ctx.lineWidth = 0.5
-
-        // Vertical lines
-        for (let i = 0; i <= width; i++) {
-          const x = mapOffsetX + i * cellSize
-          ctx.beginPath()
-          ctx.moveTo(x, mapOffsetY)
-          ctx.lineTo(x, mapOffsetY + mapPixelHeight)
-          ctx.stroke()
-        }
-
-        // Horizontal lines
-        for (let i = 0; i <= height; i++) {
-          const y = mapOffsetY + i * cellSize
-          ctx.beginPath()
-          ctx.moveTo(mapOffsetX, y)
-          ctx.lineTo(mapOffsetX + mapPixelWidth, y)
-          ctx.stroke()
-        }
-      }
-
-      ctx.restore()
 
       // Draw points in screen space (not affected by rotation)
       // Draw origin point (red)
-      const originCanvas = worldToCanvas(mapData.origin.position.x, mapData.origin.position.y)
+      const originCanvas = worldToCanvas(1, 1)
       ctx.beginPath()
       ctx.arc(originCanvas.x, originCanvas.y, 8, 0, 2 * Math.PI)
       ctx.fillStyle = "#ef4444"
@@ -495,30 +479,26 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
       const targetZoom = Math.max(0.1, Math.min(10, zoom * zoomFactor))
 
-      // Keep the world point under cursor stationary by adjusting offset
-      const { resolution, origin } = mapData
-      const cellSizePrev = resolution * zoom * PIXELS_PER_METER
+      // Keep the world point under cursor stationary by adjusting offset using image-based math
       const centerX = rect.width / 2
       const centerY = rect.height / 2
       const relX = mouseX - (centerX + offset.x)
       const relY = mouseY - (centerY + offset.y)
 
-      // Reverse rotation for previous zoom
+      // Reverse rotation
       const rotRadInv = (-rotation * Math.PI) / 180
       const cosInv = Math.cos(rotRadInv)
       const sinInv = Math.sin(rotRadInv)
       const ux = relX * cosInv - relY * sinInv
       const uy = relX * sinInv + relY * cosInv
 
-      const gridX = ux / cellSizePrev
-      const gridY = -uy / cellSizePrev
-      const worldX = gridX * resolution + origin.position.x
-      const worldY = gridY * resolution + origin.position.y
+      // Reverse scale to map-centered coords
+      const mapX = ux / zoom
+      const mapY = uy / zoom
 
-      // Compute new canvas position of the same world point at target zoom
-      const cellSizeNew = resolution * targetZoom * PIXELS_PER_METER
-      const newUx = gridX * cellSizeNew
-      const newUy = -gridY * cellSizeNew
+      // Re-apply new scale
+      const newUx = mapX * targetZoom
+      const newUy = mapY * targetZoom
       const rotRad = (rotation * Math.PI) / 180
       const cos = Math.cos(rotRad)
       const sin = Math.sin(rotRad)
@@ -649,7 +629,7 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
                   <strong>Resolution:</strong> {mapData.resolution}m
                 </div>
                 <div>
-                  <strong>Origin:</strong> ({mapData.origin.position.x}, {mapData.origin.position.y})
+                  <strong>World Origin:</strong> (0, 0)
                 </div>
                 <div>
                   <strong>Data Length:</strong> {mapData.data.length}
