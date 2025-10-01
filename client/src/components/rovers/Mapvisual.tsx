@@ -362,7 +362,7 @@ const EnhancedMapVisual = ({ className, roverId }: MapVisualProps) => {
 
       // Draw points in screen space (not affected by rotation)
       // Draw origin point (red)
-      const originCanvas = worldToCanvas(1, 1)
+      const originCanvas = worldToCanvas(0, 0)
       ctx.beginPath()
       ctx.arc(originCanvas.x, originCanvas.y, 8, 0, 2 * Math.PI)
       ctx.fillStyle = "#ef4444"

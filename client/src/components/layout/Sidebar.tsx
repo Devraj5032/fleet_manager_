@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Truck, Info, Download, Settings } from "lucide-react";
+import { Home, Truck, Info, Download, Settings, Gauge } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 const Sidebar = () => {
@@ -17,6 +17,11 @@ const Sidebar = () => {
       label: "Dashboard", 
       icon: <Home className="h-5 w-5 mr-2" />, 
       href: "/" 
+    },
+    {
+      label: "Robot Dashboard",
+      icon: <Gauge className="h-5 w-5 mr-2" />,
+      href: "/robot-dashboard"
     },
     { 
       label: "Rovers", 

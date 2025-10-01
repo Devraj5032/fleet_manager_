@@ -18,9 +18,9 @@ function generateSensorData() {
     distanceTraveled: +(Math.random() * 100).toFixed(2),
     trips: Math.floor(Math.random() * 5),
     currentPosition: {
-      x: +(Math.random() * 10).toFixed(2),
-      y: +(Math.random() * 10).toFixed(2),
-      z: +(Math.random() * 1).toFixed(2),
+      x: 1,
+      y: 0,
+      z: 23,
     },
   };
 }
