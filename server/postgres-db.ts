@@ -22,6 +22,7 @@ export function createPostgresDb() {
 
   // Disable prefetch/prepare for compatibility with some pool modes
   const client = postgres(connectionString, { prepare: false });
+
   const db = drizzle(client, { schema });
   return db;
 }
