@@ -4,7 +4,9 @@ import {
   sensorData, type SensorData, type InsertSensorData,
   commandLogs, type CommandLog, type InsertCommandLog,
   roverClients, type RoverClient, type InsertRoverClient
-} from "../shared/schema";
+} from "../shared/schema.pg";
+import { PostgresStorage } from './pg-storage';
+import { createPostgresDb } from './postgres-db';
 
 // Interface for all storage operations
 export interface IStorage {
@@ -125,13 +127,19 @@ export class MemStorage implements IStorage {
     const rover: Rover = { 
       ...insertRover, 
       id, 
-      connected: false, 
+      connected: false,
       status: "disconnected",
       batteryLevel: 100,
       lastSeen: new Date(),
-      ipAddress: insertRover.ipAddress ?? null, // Handle undefined gracefully
-
-      metadata: {}
+      currentLatitude: null,
+      currentLongitude: null,
+      currentAltitude: null,
+      totalDistanceTraveled: 0,
+      totalTrips: 0,
+      ipAddress: insertRover.ipAddress ?? null,
+      metadata: {},
+      createdAt: null,
+      updatedAt: null
     };
     this.rovers.set(id, rover);
     return rover;
@@ -161,9 +169,21 @@ export class MemStorage implements IStorage {
   async createSensorData(insertData: InsertSensorData): Promise<SensorData> {
     const id = this.sensorDataCurrentId++;
     const data: SensorData = {
-      ...insertData,
       id,
-      timestamp: new Date()
+      roverId: insertData.roverId,
+      timestamp: new Date(),
+      temperature: insertData.temperature ?? null,
+      humidity: insertData.humidity ?? null,
+      pressure: insertData.pressure ?? null,
+      altitude: insertData.altitude ?? null,
+      heading: insertData.heading ?? null,
+      speed: insertData.speed ?? null,
+      tilt: insertData.tilt ?? null,
+      latitude: insertData.latitude ?? null,
+      longitude: insertData.longitude ?? null,
+      batteryLevel: insertData.batteryLevel ?? null,
+      signalStrength: insertData.signalStrength ?? null,
+      tripId: insertData.tripId ?? null
       
     };
     this.sensorDataItems.set(id, data);
@@ -187,9 +207,14 @@ export class MemStorage implements IStorage {
     
 
     const log: CommandLog = {
-      ...insertLog,
-        id,
-        timestamp: new Date()
+      id,
+      roverId: insertLog.roverId,
+      command: insertLog.command,
+      status: insertLog.status ?? null,
+      response: insertLog.response ?? null,
+      userId: insertLog.userId ?? null,
+      tripId: insertLog.tripId ?? null,
+      timestamp: new Date()
     };
     this.commandLogs.set(id, log);
     return log;
@@ -231,8 +256,10 @@ export class MemStorage implements IStorage {
       ...insertClient,
       id,
       lastPing: new Date(),
-      socketId: insertClient.socketId ?? null, // Handle undefined gracefully
-      connected: insertClient.connected ?? null, // Handle undefined gracefully
+      socketId: insertClient.socketId ?? null,
+      connected: insertClient.connected ?? null,
+      connectTime: null,
+      disconnectTime: null
 
     };
 
@@ -254,4 +281,6 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Force Postgres storage using hardcoded connection in createPostgresDb
+export const storage = new PostgresStorage(createPostgresDb());
+console.log('Using Postgres storage (hardcoded connection)');

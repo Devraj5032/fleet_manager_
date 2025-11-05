@@ -1,10 +1,10 @@
 /**
- * PostgreSQL storage implementation using Drizzle ORM
+ * PostgreSQL storage implementation using Drizzle ORM (postgres-js)
  */
 
 import { eq, desc } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '@shared/schema';
+import * as schema from '@shared/schema.pg';
 import { IStorage } from './storage';
 import { 
   User, InsertUser,
@@ -12,7 +12,7 @@ import {
   SensorData, InsertSensorData,
   CommandLog, InsertCommandLog,
   RoverClient, InsertRoverClient
-} from '@shared/schema';
+} from '@shared/schema.pg';
 
 export class PostgresStorage implements IStorage {
   private db: PostgresJsDatabase<typeof schema>;

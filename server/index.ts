@@ -1,10 +1,19 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+// Disable ETag to avoid 304 on API responses that some clients treat as errors
+app.set('etag', false);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Prevent caching for API responses
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
