@@ -78,9 +78,11 @@ export default function BatteryMeter({ percent, charging = false }: BatteryMeter
 
             {/* Charging bolt */}
             {charging && (
-              <g transform="translate(48,34)" fill="#0ea5e9" className="animate-pulse">
+              <div className="p-4">
+                <g transform="translate(48,34)" fill="#0ea5e9" className="animate-pulse">
                 <path d="M16 6h-6l4-10-12 16h6l-4 12 12-18z" />
               </g>
+              </div>
             )}
 
             <text x="60" y="66" textAnchor="middle" fontSize="20" fill="#111827" fontWeight="600">

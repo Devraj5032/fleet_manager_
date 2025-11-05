@@ -41,15 +41,6 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <WaterLevels cleanPercent={cleanPercent} dirtyPercent={Math.max(0, 100 - cleanPercent)} />
-        </div>
-        <div className="xl:col-span-1">
-          <BatteryMeter percent={batteryPercent} charging={charging} />
-        </div>
-      </div>
-
       <div className="mt-6">
         <Stats />
       </div>

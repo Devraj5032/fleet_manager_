@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import WaterLevels from "@/components/dashboard/WaterLevels";
 import BatteryMeter from "@/components/dashboard/BatteryMeter";
+import MotorUsage from "@/components/dashboard/MotorUsage";
 
 export default function RobotDashboard() {
   const [cleanPercent, setCleanPercent] = useState<number>(68);
@@ -28,8 +29,8 @@ export default function RobotDashboard() {
         <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Robot Dashboard</h2>
-              <p className="text-sm text-zinc-600">Industrial status at a glance</p>
+              <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Cleaning Rover Dashboard</h2>
+              {/* <p className="text-sm text-zinc-600">Industrial status at a glance</p> */}
             </div>
             <div className="flex gap-2">
               <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200">Live</span>
@@ -47,6 +48,8 @@ export default function RobotDashboard() {
             <BatteryMeter percent={batteryPercent} charging={charging} />
           </div>
         </div>
+
+        <MotorUsage />
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
