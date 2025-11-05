@@ -1,9 +1,9 @@
 /**
- * PostgreSQL storage implementation using Drizzle ORM (postgres-js)
+ * PostgreSQL storage implementation using Drizzle ORM (node-postgres)
  */
 
 import { eq, desc } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@shared/schema.pg';
 import { IStorage } from './storage';
 import { 
@@ -15,9 +15,9 @@ import {
 } from '@shared/schema.pg';
 
 export class PostgresStorage implements IStorage {
-  private db: PostgresJsDatabase<typeof schema>;
+  private db: NodePgDatabase<typeof schema>;
   
-  constructor(db: PostgresJsDatabase<typeof schema>) {
+  constructor(db: NodePgDatabase<typeof schema>) {
     this.db = db;
   }
   

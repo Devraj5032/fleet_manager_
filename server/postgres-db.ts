@@ -1,6 +1,7 @@
 import dns from 'dns';
-import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
+import pg from 'pg';
+const { Pool } = pg;
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@shared/schema.pg';
 
 export function createPostgresDb() {
@@ -20,9 +21,16 @@ export function createPostgresDb() {
     }
   } catch {}
 
-  // Disable prefetch/prepare for compatibility with some pool modes
-  const client = postgres(connectionString, { prepare: false });
+  const pool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    keepAlive: true,
+    connectionTimeoutMillis: 20000,
+  });
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle PostgreSQL client', err);
+  });
 
-  const db = drizzle(client, { schema });
+  const db = drizzle(pool, { schema });
   return db;
 }
