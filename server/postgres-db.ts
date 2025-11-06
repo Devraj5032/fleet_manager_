@@ -34,6 +34,7 @@
 //   const db = drizzle(pool, { schema });
 //   return db;
 // }
+import net from 'net';
 import dns from 'dns';
 import pg from 'pg';
 const { Pool } = pg;
@@ -44,6 +45,7 @@ export function createPostgresDb() {
   console.log('[db] createPostgresDb() invoked');
 
   const connectionString = "postgresql://postgres:Dev12345Raj123@db.rqtggqtglxaiencrttnm.supabase.co:5432/postgres?sslmode=require";
+
   try {
     const masked = connectionString?.replace(/:\/\/([^:]+):[^@]+@/, '://$1:****@');
     console.log('[db] DATABASE_URL:', masked ?? '(undefined)');
@@ -53,20 +55,17 @@ export function createPostgresDb() {
     throw new Error('DATABASE_URL is required for Postgres connection');
   }
 
-  // ✅ Force IPv4-first DNS resolution globally
-  try {
-    if (typeof dns.setDefaultResultOrder === 'function') {
-      dns.setDefaultResultOrder('ipv4first');
-    }
-  } catch (err) {
-    console.warn('DNS configuration failed:', err);
-  }
+  // Force IPv4-only DNS resolution
+  dns.setDefaultResultOrder('ipv4first');
 
+  // Custom connection function for IPv4 only
   const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
     keepAlive: true,
     connectionTimeoutMillis: 20000,
+    // 👇 This line forces Node’s TCP socket to use IPv4 only
+    stream: (opts) => net.connect({ ...opts, family: 4, host: 'db.rqtggqtglxaiencrttnm.supabase.co' }),
   });
 
   pool.on('error', (err) => {
@@ -76,3 +75,4 @@ export function createPostgresDb() {
   const db = drizzle(pool, { schema });
   return db;
 }
+
