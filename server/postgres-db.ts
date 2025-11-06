@@ -7,7 +7,7 @@ export function createPostgresDb() {
   console.log('[db] createPostgresDb() invoked');
 
   const connectionString =
-    'postgresql://postgres:Dev12345Raj123@db.rqtggqtglxaiencrttnm.supabase.co:5432/postgres?sslmode=require';
+    'postgresql://postgres:Dev12345Raj123@fleet-manager-db.clgqkuikiapv.eu-north-1.rds.amazonaws.com:5432/fleetdb';
 
   const masked = connectionString?.replace(/:\/\/([^:]+):[^@]+@/, '://$1:****@');
   console.log('[db] DATABASE_URL:', masked ?? '(undefined)');
