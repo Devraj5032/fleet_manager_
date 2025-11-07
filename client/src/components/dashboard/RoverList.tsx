@@ -194,11 +194,11 @@ const RoverList: React.FC<RoverListProps> = ({
                   : "bg-gray-50"
               }`}
             >
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2">
-                  <Server className="h-5 w-5 text-blue-500" />
-                  <h3 className="font-medium text-lg">{rover.name}</h3>
-                  <Badge variant="outline" className="ml-2">{rover.identifier}</Badge>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Server className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                  <h3 className="font-medium text-base sm:text-lg truncate">{rover.name}</h3>
+                  <Badge variant="outline" className="ml-0 sm:ml-2">{rover.identifier}</Badge>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge className={getStatusColor(rover.status)}>{rover.status}</Badge>
@@ -224,25 +224,25 @@ const RoverList: React.FC<RoverListProps> = ({
                       <TabsTrigger value="timestamps">Timestamps</TabsTrigger>
                     </TabsList>
                     <TabsContent value="details">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="font-medium">ID:</div><div>{rover.id}</div>
-                        <div className="font-medium">Name:</div><div>{rover.name}</div>
-                        <div className="font-medium">Identifier:</div><div>{rover.identifier}</div>
-                        <div className="font-medium">Status:</div><div>{rover.status}</div>
-                        <div className="font-medium">Customer ID:</div><div>{rover.customer_id}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        <div className="font-medium">ID:</div><div className="break-all">{rover.id}</div>
+                        <div className="font-medium">Name:</div><div className="break-all">{rover.name}</div>
+                        <div className="font-medium">Identifier:</div><div className="break-all">{rover.identifier}</div>
+                        <div className="font-medium">Status:</div><div className="break-all">{rover.status}</div>
+                        <div className="font-medium">Customer ID:</div><div className="break-all">{rover.customer_id}</div>
                       </div>
                     </TabsContent>
                     <TabsContent value="network">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="font-medium">IP Address:</div><div>{rover.ip_address}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        <div className="font-medium">IP Address:</div><div className="break-all font-mono text-xs">{rover.ip_address}</div>
                         <div className="font-medium">Last Seen:</div>
-                        <div><Clock className="h-4 w-4 mr-1 text-blue-500 inline" />{getTimeAgo(rover.last_seen)}</div>
+                        <div className="flex items-center gap-1"><Clock className="h-4 w-4 text-blue-500 flex-shrink-0" /><span>{getTimeAgo(rover.last_seen)}</span></div>
                       </div>
                     </TabsContent>
                     <TabsContent value="timestamps">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="font-medium">Created:</div><div>{new Date(rover.created_at).toLocaleString()}</div>
-                        <div className="font-medium">Updated:</div><div>{new Date(rover.updated_at).toLocaleString()}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        <div className="font-medium">Created:</div><div className="break-all text-xs">{new Date(rover.created_at).toLocaleString()}</div>
+                        <div className="font-medium">Updated:</div><div className="break-all text-xs">{new Date(rover.updated_at).toLocaleString()}</div>
                       </div>
                     </TabsContent>
                   </Tabs>
@@ -262,9 +262,9 @@ const RoverList: React.FC<RoverListProps> = ({
         ) : (
           <div className="text-center py-6 text-muted-foreground">No rovers found.</div>
         )}
-        <div className="mt-4 flex justify-between">
+        <div className="mt-4 flex flex-col sm:flex-row justify-between gap-2">
           <Button variant="outline" size="sm" onClick={fetchRovers}>Refresh</Button>
-          <div className="text-xs text-muted-foreground">Auto-refreshes every 10s</div>
+          <div className="text-xs text-muted-foreground text-center sm:text-right">Auto-refreshes every 10s</div>
         </div>
       </CardContent>
     </Card>

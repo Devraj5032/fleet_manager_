@@ -150,7 +150,7 @@ const Stats = ({ className = "" }: StatsProps) => {
 
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {stats.map((stat, index) => (
           <StatCard
             key={index}
@@ -167,8 +167,8 @@ const Stats = ({ className = "" }: StatsProps) => {
       </div>
 
       {selectedStat && (
-        <div className="bg-white shadow-md rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-2">{selectedStat.title}</h2>
+        <div className="bg-white shadow-md rounded-lg p-3 md:p-4">
+          <h2 className="text-base md:text-lg font-semibold mb-2">{selectedStat.title}</h2>
           {selectedStat.content}
         </div>
       )}

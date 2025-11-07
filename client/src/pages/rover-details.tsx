@@ -78,10 +78,10 @@ const RoverDetails = () => {
     <>
     {console.log(rover)}
       <div className="mb-6">
-        <div className="flex items-center mb-2">
-          <h2 className="text-2xl font-semibold mr-3">{rover.name}</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+          <h2 className="text-xl sm:text-2xl font-semibold mr-0 sm:mr-3 truncate">{rover.name}</h2>
           <div
-            className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
+            className={`text-xs px-2 py-1 rounded-full w-fit ${getStatusColor(
               rover.status,
               rover.connected
             )}`}
@@ -91,7 +91,7 @@ const RoverDetails = () => {
               : "Disconnected"}
           </div>
         </div>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground break-words">
           ID: {rover.identifier} | Last seen:{" "}
           {rover.lastSeen
             ? format(new Date(rover.lastSeen), "MMM d, yyyy HH:mm:ss")

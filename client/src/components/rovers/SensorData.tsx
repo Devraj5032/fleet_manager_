@@ -116,7 +116,7 @@ const SensorDataDisplay = ({ className, roverId }: SensorDataProps) => {
           </div>
 
           {/* Live Stats */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
               <div className="text-xs text-muted-foreground">Temperature</div>
               <div className="font-semibold text-lg">

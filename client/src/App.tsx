@@ -13,13 +13,29 @@ import Sidebar from "@/components/layout/Sidebar";
 import { WebSocketProvider } from "@/lib/websocket";
 import Rovers from "@/pages/rovers";
 import RobotDashboard from "@/pages/robot-dashboard";
+import { useState } from "react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+
 function Router() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="flex flex-col h-screen">
-      <Header />
+      <Header onMenuClick={() => setMobileMenuOpen(true)} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-6">
+        {/* Desktop Sidebar */}
+        <aside className="hidden md:block">
+          <Sidebar />
+        </aside>
+        
+        {/* Mobile Sidebar */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="w-[280px] p-0">
+            <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
+          </SheetContent>
+        </Sheet>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Switch>
             <Route path="/" component={Dashboard} />
             <Route path="/robot-dashboard" component={RobotDashboard} />

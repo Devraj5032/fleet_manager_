@@ -12,9 +12,9 @@ const Rovers = () => {
 
   return (
     <>
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Rovers</h2>
-        <p className="text-muted-foreground">
+      <div className="mb-4 md:mb-6">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-2">Rovers</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Rovers and control your connected rovers
         </p>
       </div>

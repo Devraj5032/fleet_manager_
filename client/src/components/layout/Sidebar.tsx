@@ -3,7 +3,11 @@ import { Link, useLocation } from "wouter";
 import { Home, Truck, Info, Download, Settings, Gauge } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-const Sidebar = () => {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+const Sidebar = ({ onNavigate }: SidebarProps) => {
   const [location] = useLocation();
   
   const { data: stats } = useQuery({
@@ -45,8 +49,15 @@ const Sidebar = () => {
     },
   ];
   
+  const handleNavigation = (href: string) => {
+    window.location.href = href;
+    if (onNavigate) {
+      onNavigate();
+    }
+  };
+  
   return (
-    <aside className="bg-background w-64 border-r border-border flex flex-col">
+    <aside className="bg-background w-full md:w-64 border-r border-border flex flex-col h-full">
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-lg">Navigation</h2>
       </div>
@@ -60,7 +71,7 @@ const Sidebar = () => {
                     ? "text-primary bg-primary/10"
                     : "text-muted-foreground hover:bg-muted"
                 }`}
-                onClick={() => window.location.href = item.href}
+                onClick={() => handleNavigation(item.href)}
                 style={{ cursor: 'pointer' }}
               >
                 {item.icon}
@@ -75,7 +86,7 @@ const Sidebar = () => {
         <div className="bg-muted rounded-md p-3 text-xs">
           <div className="flex justify-between mb-1">
             <span>Server IP:</span>
-            <span className="font-mono">{window.location.hostname}</span>
+            <span className="font-mono text-[10px] md:text-xs break-all">{window.location.hostname}</span>
           </div>
           <div className="flex justify-between mb-1">
             <span>Active Rovers:</span>

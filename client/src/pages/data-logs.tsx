@@ -48,9 +48,9 @@ const DataLogs = () => {
   
   return (
     <>
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Data Logs</h2>
-        <p className="text-muted-foreground">View and analyze rover command logs and sensor data</p>
+      <div className="mb-4 md:mb-6">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-2">Data Logs</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">View and analyze rover command logs and sensor data</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -118,9 +118,9 @@ const DataLogs = () => {
         </Card>
       </div>
       
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
         <Select value={selectedRoverId} onValueChange={setSelectedRoverId}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Select Rover" />
           </SelectTrigger>
           <SelectContent>
@@ -138,26 +138,26 @@ const DataLogs = () => {
           </SelectContent>
         </Select>
         
-        <div className="flex space-x-2">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Search logs..." 
-              className="pl-8 w-[250px]" 
+              className="pl-8 w-full sm:w-[200px] md:w-[250px]" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Filter className="mr-2 h-4 w-4" />
             Filter
             <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
           
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </Button>
         </div>
       </div>
@@ -189,22 +189,22 @@ const DataLogs = () => {
                 {isCommandLogsLoading ? (
                   <Skeleton className="h-64 w-full" />
                 ) : filteredCommandLogs && filteredCommandLogs.length > 0 ? (
-                  <div className="border rounded-md">
+                  <div className="border rounded-md overflow-x-auto">
                     <table className="min-w-full divide-y divide-border">
                       <thead>
                         <tr className="bg-muted">
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Time</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Command</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Status</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Response</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Time</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Command</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Status</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Response</th>
                         </tr>
                       </thead>
                       <tbody className="bg-background divide-y divide-border">
                         {filteredCommandLogs.map((log) => (
                           <tr key={log.id}>
-                            <td className="px-4 py-2 text-sm">{format(new Date(log.timestamp), 'HH:mm:ss')}</td>
-                            <td className="px-4 py-2 text-sm font-mono">{log.command}</td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm whitespace-nowrap">{format(new Date(log.timestamp), 'HH:mm:ss')}</td>
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm font-mono break-all">{log.command}</td>
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               <span className={`inline-block px-2 py-1 rounded-full text-xs ${
                                 log.status === 'success' ? 'bg-green-100 text-green-800' :
                                 log.status === 'failed' ? 'bg-red-100 text-red-800' :
@@ -213,7 +213,7 @@ const DataLogs = () => {
                                 {log.status}
                               </span>
                             </td>
-                            <td className="px-4 py-2 text-sm">{log.response || '-'}</td>
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm break-all">{log.response || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -243,41 +243,41 @@ const DataLogs = () => {
                     <table className="min-w-full divide-y divide-border">
                       <thead>
                         <tr className="bg-muted">
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Time</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Temp (°C)</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Humidity (%)</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Pressure (hPa)</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Heading (°)</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Speed (m/s)</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Battery (%)</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Signal (%)</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Time</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Temp</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Humidity</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Pressure</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Heading</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Speed</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Battery</th>
+                          <th className="px-2 md:px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Signal</th>
                         </tr>
                       </thead>
                       <tbody className="bg-background divide-y divide-border">
                         {sensorData.slice(0, 10).map((data) => (
                           <tr key={data.id}>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm whitespace-nowrap">
                               {format(new Date(data.timestamp), 'HH:mm:ss')}
                             </td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               {data.temperature?.toFixed(1) || '-'}
                             </td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               {data.humidity?.toFixed(0) || '-'}
                             </td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               {data.pressure?.toFixed(0) || '-'}
                             </td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               {data.heading?.toFixed(0) || '-'}
                             </td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               {data.speed?.toFixed(2) || '-'}
                             </td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               {data.batteryLevel || '-'}
                             </td>
-                            <td className="px-4 py-2 text-sm">
+                            <td className="px-2 md:px-4 py-2 text-xs md:text-sm">
                               {data.signalStrength || '-'}
                             </td>
                           </tr>

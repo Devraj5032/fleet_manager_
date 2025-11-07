@@ -199,16 +199,16 @@ const Diagnostics = () => {
   return (
     <>
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-semibold mb-2">Diagnostics</h2>
-            <p className="text-muted-foreground">Monitor system health and troubleshoot issues</p>
+            <h2 className="text-xl sm:text-2xl font-semibold mb-2">Diagnostics</h2>
+            <p className="text-sm sm:text-base text-muted-foreground">Monitor system health and troubleshoot issues</p>
           </div>
           <div className="flex items-center">
             <span
               className={`inline-block w-2.5 h-2.5 rounded-full mr-2 ${wsConnected ? "bg-green-500" : "bg-red-500"}`}
             ></span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               WebSocket {wsConnected ? "Connected" : "Disconnected"}
             </span>
           </div>
@@ -312,13 +312,13 @@ const Diagnostics = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
                         <div className="bg-gray-50 rounded p-2">
                           <div className="text-xs text-muted-foreground">Battery</div>
                           <div className="flex items-end">
-                            <span className="text-lg font-medium">{rover.batteryLevel}%</span>
+                            <span className="text-base md:text-lg font-medium">{rover.batteryLevel}%</span>
                             <Battery
-                              className={`h-4 w-4 ml-1 ${
+                              className={`h-4 w-4 ml-1 flex-shrink-0 ${
                                 rover.batteryLevel < 20 ? "text-destructive" : "text-green-500"
                               }`}
                             />
@@ -328,26 +328,26 @@ const Diagnostics = () => {
                         <div className="bg-gray-50 rounded p-2">
                           <div className="text-xs text-muted-foreground">Status</div>
                           <div className="flex items-end">
-                            <span className="text-lg font-medium">
+                            <span className="text-base md:text-lg font-medium truncate">
                               {rover.connected
                                 ? rover.status?.charAt(0).toUpperCase() + rover.status?.slice(1)
                                 : "Offline"}
                             </span>
-                            <Activity className="h-4 w-4 ml-1" />
+                            <Activity className="h-4 w-4 ml-1 flex-shrink-0" />
                           </div>
                         </div>
 
                         <div className="bg-gray-50 rounded p-2">
                           <div className="text-xs text-muted-foreground">IP Address</div>
                           <div className="flex items-end">
-                            <span className="text-lg font-medium font-mono">{rover.ipAddress || "Unknown"}</span>
+                            <span className="text-xs md:text-base font-medium font-mono truncate">{rover.ipAddress || "Unknown"}</span>
                           </div>
                         </div>
 
                         <div className="bg-gray-50 rounded p-2">
                           <div className="text-xs text-muted-foreground">Last Seen</div>
                           <div className="flex items-end">
-                            <span className="text-lg font-medium">
+                            <span className="text-xs md:text-base font-medium">
                               {rover.lastSeen ? new Date(rover.lastSeen).toLocaleTimeString() : "Never"}
                             </span>
                           </div>
