@@ -49,8 +49,7 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
     },
   ];
   
-  const handleNavigation = (href: string) => {
-    window.location.href = href;
+  const handleNavigation = () => {
     if (onNavigate) {
       onNavigate();
     }
@@ -65,18 +64,18 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
         <ul>
           {navItems.map((item) => (
             <li key={item.href}>
-              <div
-                className={`flex items-center px-3 py-2 rounded-md mb-1 ${
+              <Link
+                href={item.href}
+                onClick={handleNavigation}
+                className={`flex items-center px-3 py-2 rounded-md mb-1 transition-colors ${
                   (location === item.href || (item.href !== "/" && location.startsWith(item.href)))
                     ? "text-primary bg-primary/10"
                     : "text-muted-foreground hover:bg-muted"
                 }`}
-                onClick={() => handleNavigation(item.href)}
-                style={{ cursor: 'pointer' }}
               >
                 {item.icon}
                 {item.label}
-              </div>
+              </Link>
             </li>
           ))}
         </ul>

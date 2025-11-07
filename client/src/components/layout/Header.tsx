@@ -2,7 +2,7 @@ import React from "react";
 import { useWebSocket } from "@/lib/websocket";
 import { Bolt, Settings, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -10,11 +10,7 @@ interface HeaderProps {
 
 const Header = ({ onMenuClick }: HeaderProps) => {
   const { connected } = useWebSocket();
-
-  const { data: stats } = useQuery({
-    queryKey: ["/api/stats"],
-    refetchInterval: 5000,
-  });
+  const [, setLocation] = useLocation();
 
   return (
     <header className="bg-primary text-white shadow-md">
@@ -63,7 +59,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             variant="secondary"
             size="sm"
             className="p-2 md:px-3"
-            onClick={() => (window.location.href = "/settings")}
+            onClick={() => setLocation("/settings")}
           >
             <Settings className="h-4 w-4 md:mr-1" />
             <span className="hidden md:inline">Settings</span>
