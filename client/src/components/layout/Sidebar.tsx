@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Truck, Info, Download, Settings, Gauge } from "lucide-react";
+import { Home, Truck, Info, Download, Settings, Gauge, LayoutDashboard } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface SidebarProps {
@@ -12,6 +12,11 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
   
   const { data: stats } = useQuery({
     queryKey: ['/api/stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/stats');
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      return res.json();
+    },
     refetchInterval: 5000,
   });
   
@@ -21,6 +26,11 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
       label: "Dashboard", 
       icon: <Home className="h-5 w-5 mr-2" />, 
       href: "/" 
+    },
+    {
+      label: "Mission Control",
+      icon: <LayoutDashboard className="h-5 w-5 mr-2" />,
+      href: "/mission-control",
     },
     {
       label: "Robot Dashboard",
@@ -89,7 +99,7 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
           </div>
           <div className="flex justify-between mb-1">
             <span>Active Rovers:</span>
-            <span>{stats ? `${stats.connectedRovers}/${stats.totalRovers}` : 'Loading...'}</span>
+            <span>{stats ? `${stats.connectedRovers ?? 0}/${stats.totalRovers ?? 0}` : 'Loading...'}</span>
           </div>
           <div className="flex justify-between">
             <span>Uptime:</span>

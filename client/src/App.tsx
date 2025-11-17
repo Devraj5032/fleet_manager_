@@ -13,6 +13,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import { WebSocketProvider } from "@/lib/websocket";
 import Rovers from "@/pages/rovers";
 import RobotDashboard from "@/pages/robot-dashboard";
+import MissionControlDashboard from "@/pages/mission-control";
 import { useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
@@ -39,6 +40,7 @@ function Router() {
           <Switch>
             <Route path="/" component={Dashboard} />
             <Route path="/robot-dashboard" component={RobotDashboard} />
+            <Route path="/mission-control" component={MissionControlDashboard} />
             <Route path="/rovers/:id" component={RoverDetails} />{" "}
             <Route path="/rovers" component={Rovers} />{" "}
             <Route path="/diagnostics" component={Diagnostics} />

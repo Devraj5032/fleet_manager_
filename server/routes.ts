@@ -8,6 +8,9 @@ import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import * as fs from 'fs';
 import * as path from 'path';
+import { createPostgresDb } from './postgres-db';
+import * as schema from '@shared/schema.pg';
+import { eq } from 'drizzle-orm';
 // Using Drizzle Postgres storage; direct MySQL usage removed
 
 // Helper function to ensure all messages have timestamp
@@ -196,8 +199,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
               let rover = await storage.getRoverByIdentifier(roverIdentifier);
               
               if (!rover) {
-                // Create new rover if not found
+                // Need to create matrix entry first, then rover
+                const db = createPostgresDb();
+                
+                // Check if matrix entry exists for this rover identifier
+                let matrixEntry = await db
+                  .select()
+                  .from(schema.roverCustomerMatrix)
+                  .where(eq(schema.roverCustomerMatrix.roverId, roverIdentifier))
+                  .limit(1);
+                
+                let matrixId: number;
+                
+                if (matrixEntry.length === 0) {
+                  // Matrix entry doesn't exist, create it
+                  // First, get or create a default customer
+                  let defaultCustomer = await db
+                    .select()
+                    .from(schema.customers)
+                    .limit(1);
+                  
+                  let customerId: number;
+                  
+                  if (defaultCustomer.length === 0) {
+                    // Create default customer
+                    const [newCustomer] = await db
+                      .insert(schema.customers)
+                      .values({
+                        companyName: 'Default Customer',
+                        location: 'Unknown',
+                        contactPerson: 'System',
+                        contactEmail: 'system@example.com',
+                        contactPhone: '',
+                      })
+                      .returning();
+                    customerId = newCustomer.id;
+                  } else {
+                    customerId = defaultCustomer[0].id;
+                  }
+                  
+                  // Create matrix entry
+                  const [newMatrix] = await db
+                    .insert(schema.roverCustomerMatrix)
+                    .values({
+                      roverId: roverIdentifier,
+                      roverName: `Rover ${roverIdentifier}`,
+                      customerId: customerId,
+                      isActive: true,
+                    })
+                    .returning();
+                  
+                  matrixId = newMatrix.id;
+                } else {
+                  matrixId = matrixEntry[0].id;
+                }
+                
+                // Now create the rover with the matrixId
                 rover = await storage.createRover({
+                  matrixId: matrixId,
                   name: `Rover ${roverIdentifier}`,
                   identifier: roverIdentifier,
                   ipAddress: req.socket.remoteAddress || 'unknown'
@@ -686,15 +745,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get server statistics
   app.get('/api/stats', async (req, res) => {
     try {
+      const db = createPostgresDb();
       const rovers = await storage.getAllRovers();
-      const connectedRovers = rovers.filter(rover => rover.connected);
+      
+      // Get all rovers with their matrix data to check isActive status
+      // Use leftJoin to handle cases where matrix might not exist (though it should per schema)
+      const roversWithMatrix = await db
+        .select({
+          rover: schema.rovers,
+          matrix: schema.roverCustomerMatrix,
+        })
+        .from(schema.rovers)
+        .leftJoin(schema.roverCustomerMatrix, eq(schema.rovers.matrixId, schema.roverCustomerMatrix.id));
+      
+      // Count connected rovers (websocket connected)
+      const connectedRovers = rovers.filter(rover => rover.connected === true);
+      
+      // Count enabled rovers (isActive = true in matrix table, and matrix exists)
+      const enabledRovers = roversWithMatrix.filter(item => item.matrix && item.matrix.isActive === true).length;
       
       const stats = {
         //registeredRovers: rovers.length,
-        //enabledRovers: rovers.filter(rover => rover.lastSeen !==null).length, // Planned to use
-        activeRovers: rovers.filter(rover => rover.status === 'active').length,
+        enabledRovers: enabledRovers,
+        activeRovers: connectedRovers.length, // Active = connected via websocket
         inactiveRovers: rovers.filter(rover => rover.status === 'inactive').length,
-        errorRovers: rovers.filter(rover => rover.status === 'error').length
+        errorRovers: rovers.filter(rover => rover.status === 'error').length,
+        connectedRovers: connectedRovers.length,
+        totalRovers: rovers.length
         //systemLogs: await storage.getSystemLogsCount(), // Count of system logs
 
       };
@@ -706,6 +783,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activeRovers: 0,
         inactiveRovers: 0,
         errorRovers: 0,
+        enabledRovers: 0,
+        connectedRovers: 0,
+        totalRovers: 0,
       });
     }
   });

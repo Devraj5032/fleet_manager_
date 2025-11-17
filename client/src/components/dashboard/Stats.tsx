@@ -81,9 +81,7 @@ const Stats = ({ className = "" }: StatsProps) => {
 
       return {
         registeredRovers: rovers.length,
-        enabledRovers: rovers.filter((r: any) =>
-          ["enabled", "idle", "active"].includes((r.status || "").toLowerCase())
-        ).length,
+        enabledRovers: statsJson.enabledRovers ?? 0, // Use enabledRovers from API (based on isActive in matrix table)
         activeRovers: statsJson.activeRovers ?? 0,
         inactiveRovers: statsJson.inactiveRovers ?? 0,
         systemLogs: statsJson.systemLogs ?? 0,
